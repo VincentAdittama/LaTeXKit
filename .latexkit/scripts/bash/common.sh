@@ -47,12 +47,23 @@ command_exists() {
 
 # Get repository root, with fallback for non-git repositories
 get_repo_root() {
-    # First check for LATEXKIT_SUPER_REPO_ROOT (set by wrapper in Private Super Repo)
-    if [[ -n "${LATEXKIT_SUPER_REPO_ROOT:-}" ]]; then
-        echo "$LATEXKIT_SUPER_REPO_ROOT"
+    # Jika variabel global sudah di-set oleh script utama, pakai itu (Paling Efisien)
+    if [[ -n "${LATEXKIT_PROJECT_ROOT:-}" ]]; then
+        echo "$LATEXKIT_PROJECT_ROOT"
+        return
+    fi
+
+    # Jika script dipanggil langsung (bukan via CLI utama), lakukan deteksi ulang:
+    
+    # 1. Cek Superproject (Submodule Case)
+    local super_root
+    super_root=$(git rev-parse --show-superproject-working-tree 2>/dev/null)
+    if [[ -n "$super_root" ]]; then
+        echo "$super_root"
         return
     fi
     
+    # 2. Cek Current Repo Root (Standalone Case)
     if git rev-parse --show-toplevel >/dev/null 2>&1; then
         git rev-parse --show-toplevel
     else

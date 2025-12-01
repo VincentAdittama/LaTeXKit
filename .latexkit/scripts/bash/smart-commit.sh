@@ -361,6 +361,16 @@ categorize_changes() {
 
 # Main execution
 main() {
+    # 1. Tentukan Root yang benar (Super Repo atau Standalone)
+    local repo_root=$(get_repo_root)
+    
+    # 2. Pindah ke Root tersebut
+    # Ini krusial agar git status/add/commit berjalan di konteks Super Repo
+    cd "$repo_root" || {
+        error "Could not change directory to $repo_root"
+        exit 1
+    }
+
     local workflow_stage=""
     local custom_message=""
     
@@ -387,7 +397,7 @@ main() {
     
     # Check if we're in a git repository
     if ! git rev-parse --git-dir > /dev/null 2>&1; then
-        error "Not a git repository!"
+        error "Not a git repository (checked at $repo_root)!"
         exit 1
     fi
     

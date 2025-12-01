@@ -10,9 +10,34 @@ set -e
 
 VERSION="1.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="${LATEXKIT_SUPER_REPO_ROOT:-$SCRIPT_DIR}"
+
+# DETEKSI MODE OPERASI (The Smart Logic)
+# -----------------------------------------------------------
+
+# Cek 1: Apakah ada Environment Variable dari Wrapper? (Explicit override)
+if [[ -n "${LATEXKIT_SUPER_REPO_ROOT:-}" ]]; then
+    PROJECT_ROOT="$LATEXKIT_SUPER_REPO_ROOT"
+    MODE="Submodule (Wrapper)"
+
+# Cek 2: Apakah saya berada di dalam Git Superproject? (Native Git check)
+# Perintah ini akan return path ke Repo B jika script ini ada di dalam submodule
+elif SUPER_ROOT=$(git rev-parse --show-superproject-working-tree 2>/dev/null) && [[ -n "$SUPER_ROOT" ]]; then
+    PROJECT_ROOT="$SUPER_ROOT"
+    MODE="Submodule (Native)"
+
+# Cek 3: Fallback ke Standalone (Repo A di-clone langsung)
+else
+    # Gunakan root dari git repo ini sendiri
+    PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SCRIPT_DIR")"
+    MODE="Standalone"
+fi
+
+# Export agar bisa dibaca oleh child scripts (common.sh dll)
+export LATEXKIT_PROJECT_ROOT="$PROJECT_ROOT"
 REGISTRY_DIR="$SCRIPT_DIR/.latexkit/registry"
 CONFIG_FILE="latexkit.config.json"
+
+
 
 # Source common utilities
 source "$SCRIPT_DIR/.latexkit/scripts/bash/common.sh" 2>/dev/null || true
