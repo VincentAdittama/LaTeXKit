@@ -10,21 +10,33 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-> IMPORTANT: When producing the final message for the user, avoid step-by-step log-style sentences such as "I've added", "replaced", "changed", "Created X todos", or other operational play-by-play. Present the final state concisely and as if delivering a finished initializer: confirm branch (if created), project directory, and the recommended next step(s). Keep messages neutral and factual; do not enumerate internal implementation steps or transient helper operations.
+> IMPORTANT: When producing the final message for the user, avoid step-by-step log-style sentences such as "I've added", "replaced", "changed", "Created X todos", or other operational play-by-play. Present the final state concisely and as if delivering a finished initializer: confirm project directory and the recommended next step(s). Keep messages neutral and factual; do not enumerate internal implementation steps or transient helper operations.
+
+## Main-Only Workflow Note
+
+This template supports **Main-Only (Trunk-Based) workflow** where all projects live in `documents/` folder on the main branch. No branching is required - projects are managed via folder structure and `.active_project` file.
+
+**Key Changes from Branch-Based Workflow:**
+- Instead of creating branches, projects are created as folders in `documents/`
+- Active project is tracked via `.active_project` file (not git branch)
+- Use `get_active_project()` function from `common.sh` to detect current project
+- All work stays on `main` branch, enabling easy search across all projects
 
 ## Outline
 
 The text the user typed after `/latexkit.start` is the assignment brief or description. This command initializes the complete assignment workflow.
 
-0. **Check current branch**:
-   - Get current git branch: `git rev-parse --abbrev-ref HEAD`
-   - If on `main` or `master` branch: Proceed with creating new document (steps 1-10)
-   - If on any other branch: Switch to "edit mode" (steps 0a-0c)
+0. **Detect current project** (Main-Only Workflow):
+   - Run `.latexkit/scripts/bash/common.sh` function `get_document_paths` to get:
+     - `ACTIVE_PROJECT` - current active project ID (from .active_project file)
+     - `DOCUMENT_DIR` - full path to project directory
+   - **If ACTIVE_PROJECT is set and DOCUMENT_DIR exists**: Switch to "edit mode" (steps 0a-0c)
+   - **If no active project or new project requested**: Proceed with creating new document (steps 1-10)
 
 0a. **Edit mode: Detect existing project**:
-   - Set `CURRENT_BRANCH` to current branch name (format: `NNN-project-name`)
-   - Set `DOCUMENT_DIR` to `documents/$CURRENT_BRANCH/`
-   - If `DOCUMENT_DIR` doesn't exist, report error and suggest switching to main branch
+   - Set `CURRENT_PROJECT` to active project name (format: `NNN-project-name`)
+   - Set `DOCUMENT_DIR` to `documents/$CURRENT_PROJECT/`
+   - If `DOCUMENT_DIR` doesn't exist, report error and suggest creating new project
 
 0b. **Edit mode: Validate and update current implementation**:
    - Run validation: `.latexkit/scripts/bash/validate-structure.sh "$DOCUMENT_DIR"`
@@ -34,7 +46,7 @@ The text the user typed after `/latexkit.start` is the assignment brief or descr
    - Check LaTeX structure integrity
 
 0c. **Edit mode: Report status**:
-   - Confirm current branch and document directory
+   - Confirm current project and document directory
    - Report validation results
    - Suggest next steps based on current progress
    - Exit (do not proceed to creation steps)
@@ -210,6 +222,7 @@ The text the user typed after `/latexkit.start` is the assignment brief or descr
 
 - **HIGHEST PRIORITY**: Always check for user-specified project names FIRST before generating
 - **RESPECT USER INPUT**: If user provides a project name (via `project name: "xxx"`), use it EXACTLY
+- **MAIN-ONLY WORKFLOW**: All projects live in `documents/` on main branch - no branch switching needed
 - Use absolute paths for all files
 - Never overwrite existing assignments
 - Preserve all manual edits in metadata files
@@ -224,9 +237,10 @@ The text the user typed after `/latexkit.start` is the assignment brief or descr
 ## Success Criteria
 
 Document is ready for next phase when:
-- ✅ **New document mode** (on main branch):
-  - Branch created with naming convention: `NNN-short-name` (three-digit prefix + descriptive name)
-  - Document directory structure is created at `documents/BRANCH_NAME/`
+- ✅ **New document mode**:
+  - Project folder created with naming convention: `NNN-short-name` (three-digit prefix + descriptive name)
+  - Document directory structure is created at `documents/NNN-short-name/`
+  - `.active_project` file updated to point to new project
   - Complete directory structure exists:
     - `checklists/`, `latex_source/`, `build/`
     - `assignment_info/`, `zotero_export/`
@@ -238,8 +252,8 @@ Document is ready for next phase when:
   - User informed about Zotero export location (if academic document)
   - Constitution check passes
   - No blocking errors
-- ✅ **Edit mode** (on document branch):
-  - Current branch confirmed
+- ✅ **Edit mode** (active project exists):
+  - Current project confirmed
   - Document directory exists and is accessible
   - Project structure validated
   - Start file updated with any new information

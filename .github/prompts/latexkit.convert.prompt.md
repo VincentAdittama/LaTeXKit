@@ -16,10 +16,10 @@ Transform the reviewed Markdown draft into properly structured LaTeX files ready
 
 1. **Detect current project**:
    - Run `.latexkit/scripts/bash/common.sh` function `get_document_paths` OR manually detect:
-     - Get current git branch: `git rev-parse --abbrev-ref HEAD`
-     - If not in git repo or on main branch, check `LATEXKIT_DOCUMENT` environment variable
-     - Set `CURRENT_BRANCH` to the branch name (format: `NNN-project-name`)
-     - Set `DOCUMENT_DIR` to `documents/$CURRENT_BRANCH/`
+     - Check `.active_project` file in repo root for current project ID
+     - Or detect from current working directory if inside `documents/xxx`
+   - Set `CURRENT_BRANCH` to the project ID (e.g., `001-my-project`) for backward compatibility
+   - Set `DOCUMENT_DIR` to `documents/$CURRENT_BRANCH/`
    - All subsequent paths should be relative to `DOCUMENT_DIR`
    - If `DOCUMENT_DIR` doesn't exist, report error and suggest running `/latexkit.start` first
 
@@ -234,7 +234,7 @@ Transform the reviewed Markdown draft into properly structured LaTeX files ready
    - If errors found, list them with file paths and line numbers
 
 12. **Report to user**:
-   - Confirm current branch/document: `$CURRENT_BRANCH`
+   - Confirm current project: `$CURRENT_BRANCH`
    - Confirm document directory: `$DOCUMENT_DIR`
    - **Confirm final document language**: State which language was used (from start.md)
    - If language transformation occurred: Note "Content translated from [source] to [target] as specified in start.md"

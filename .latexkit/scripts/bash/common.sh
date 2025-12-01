@@ -47,6 +47,12 @@ command_exists() {
 
 # Get repository root, with fallback for non-git repositories
 get_repo_root() {
+    # First check for LATEXKIT_SUPER_REPO_ROOT (set by wrapper in Private Super Repo)
+    if [[ -n "${LATEXKIT_SUPER_REPO_ROOT:-}" ]]; then
+        echo "$LATEXKIT_SUPER_REPO_ROOT"
+        return
+    fi
+    
     if git rev-parse --show-toplevel >/dev/null 2>&1; then
         git rev-parse --show-toplevel
     else
@@ -56,49 +62,173 @@ get_repo_root() {
     fi
 }
 
-# Get current branch, with fallback for non-git repositories
-get_current_branch() {
-    # First check if LATEXKIT_DOCUMENT environment variable is set
+# =================================================================
+# MAIN-ONLY WORKFLOW: Project Detection
+# =================================================================
+# This system uses file-based project detection instead of git branches.
+# It prioritizes:
+#   1. Environment variable LATEXKIT_DOCUMENT
+#   2. .active_project file in repo root (set by `latexkit switch`)
+#   3. Current working directory detection (if inside documents/xxx)
+#   4. Most recently modified project in documents/
+#   5. Fallback to "main" (no active project)
+# =================================================================
+
+# Get the active project ID (Main-Only Workflow)
+# Returns the folder name of the active project (e.g., "001-my-project")
+get_active_project() {
+    local repo_root=$(get_repo_root)
+    local docs_dir="$repo_root/documents"
+    local active_project_file="$repo_root/.active_project"
+    
+    # 1. Check environment variable (highest priority)
     if [[ -n "${LATEXKIT_DOCUMENT:-}" ]]; then
         echo "$LATEXKIT_DOCUMENT"
         return
     fi
-
-    # Then check git if available
-    if git rev-parse --abbrev-ref HEAD >/dev/null 2>&1; then
-        git rev-parse --abbrev-ref HEAD
-        return
+    
+    # 2. Check .active_project file
+    if [[ -f "$active_project_file" ]]; then
+        local project_id=$(cat "$active_project_file" | tr -d '[:space:]')
+        # Validate the project exists
+        if [[ -n "$project_id" && -d "$docs_dir/$project_id" ]]; then
+            echo "$project_id"
+            return
+        fi
     fi
-
-    # For non-git repos, try to find the latest document directory
-    local repo_root=$(get_repo_root)
-    local docs_dir="$repo_root/documents"
-
+    
+    # 3. Detect from current working directory
+    local current_dir=$(pwd)
+    if [[ "$current_dir" == "$docs_dir"/* ]]; then
+        # Extract the project folder name
+        local relative_path="${current_dir#$docs_dir/}"
+        local project_folder=$(echo "$relative_path" | cut -d'/' -f1)
+        if [[ -n "$project_folder" && -d "$docs_dir/$project_folder" ]]; then
+            echo "$project_folder"
+            return
+        fi
+    fi
+    
+    # 4. Fallback: Find most recently modified project
     if [[ -d "$docs_dir" ]]; then
-        local latest_document=""
-        local highest=0
-
+        local latest_project=""
+        local latest_mtime=0
+        
         for dir in "$docs_dir"/*; do
             if [[ -d "$dir" ]]; then
                 local dirname=$(basename "$dir")
-                if [[ "$dirname" =~ ^([0-9]{3})- ]]; then
-                    local number=${BASH_REMATCH[1]}
-                    number=$((10#$number))
-                    if [[ "$number" -gt "$highest" ]]; then
-                        highest=$number
-                        latest_document=$dirname
+                # Check if it follows naming convention NNN-*
+                if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
+                    # Get modification time
+                    local mtime
+                    if [[ "$(uname)" == "Darwin" ]]; then
+                        mtime=$(stat -f %m "$dir" 2>/dev/null || echo 0)
+                    else
+                        mtime=$(stat -c %Y "$dir" 2>/dev/null || echo 0)
+                    fi
+                    
+                    if [[ "$mtime" -gt "$latest_mtime" ]]; then
+                        latest_mtime=$mtime
+                        latest_project=$dirname
                     fi
                 fi
             fi
         done
-
-        if [[ -n "$latest_document" ]]; then
-            echo "$latest_document"
+        
+        if [[ -n "$latest_project" ]]; then
+            echo "$latest_project"
             return
         fi
     fi
+    
+    # 5. Final fallback: no active project
+    echo ""
+}
 
-    echo "main"  # Final fallback
+# Set the active project (writes to .active_project file)
+set_active_project() {
+    local project_id="$1"
+    local repo_root=$(get_repo_root)
+    local active_project_file="$repo_root/.active_project"
+    local docs_dir="$repo_root/documents"
+    
+    if [[ -z "$project_id" ]]; then
+        # Clear active project
+        rm -f "$active_project_file"
+        return 0
+    fi
+    
+    # Support partial match (e.g., "001" matches "001-my-project")
+    if [[ "$project_id" =~ ^[0-9]{3}$ ]]; then
+        # Find full project name by prefix
+        for dir in "$docs_dir"/"$project_id"-*; do
+            if [[ -d "$dir" ]]; then
+                project_id=$(basename "$dir")
+                break
+            fi
+        done
+    fi
+    
+    # Validate project exists
+    if [[ ! -d "$docs_dir/$project_id" ]]; then
+        error "Project not found: $project_id"
+        return 1
+    fi
+    
+    # Write to .active_project
+    echo "$project_id" > "$active_project_file"
+    success "Active project set to: $project_id"
+    return 0
+}
+
+# List all projects in documents/
+list_projects() {
+    local repo_root=$(get_repo_root)
+    local docs_dir="$repo_root/documents"
+    local active_project=$(get_active_project)
+    
+    if [[ ! -d "$docs_dir" ]]; then
+        warn "No documents directory found"
+        return 0
+    fi
+    
+    for dir in "$docs_dir"/*; do
+        if [[ -d "$dir" ]]; then
+            local dirname=$(basename "$dir")
+            if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
+                if [[ "$dirname" == "$active_project" ]]; then
+                    echo "  * $dirname (active)"
+                else
+                    echo "    $dirname"
+                fi
+            fi
+        fi
+    done
+}
+
+# Get current branch/project - DEPRECATED but kept for backward compatibility
+# Now delegates to get_active_project for Main-Only workflow
+get_current_branch() {
+    local active_project=$(get_active_project)
+    
+    if [[ -n "$active_project" ]]; then
+        echo "$active_project"
+        return
+    fi
+    
+    # Legacy: check git branch if no active project
+    if git rev-parse --abbrev-ref HEAD >/dev/null 2>&1; then
+        local branch=$(git rev-parse --abbrev-ref HEAD)
+        # If on main/master, return empty to signal no project
+        if [[ "$branch" == "main" || "$branch" == "master" ]]; then
+            echo ""
+            return
+        fi
+        echo "$branch"
+        return
+    fi
+    
+    echo ""  # No active project
 }
 
 # Check if we have git available
@@ -126,58 +256,94 @@ check_document_branch() {
     return 0
 }
 
-# Find document directory by numeric prefix
-find_document_dir_by_prefix() {
+# Find document directory by project ID or numeric prefix
+# This function supports both full project names and numeric prefixes
+find_document_dir_by_id() {
     local repo_root="$1"
-    local branch_name="$2"
+    local project_id="$2"
     local docs_dir="$repo_root/documents"
 
-    # Extract numeric prefix from branch (e.g., "004" from "004-whatever")
-    if [[ ! "$branch_name" =~ ^([0-9]{3})- ]]; then
-        # If branch doesn't have numeric prefix, fall back to exact match
-        echo "$docs_dir/$branch_name"
+    # If empty, return empty path
+    if [[ -z "$project_id" ]]; then
+        echo ""
+        return
+    fi
+    
+    # First, try exact match (full project name like "001-test-essay")
+    if [[ -d "$docs_dir/$project_id" ]]; then
+        echo "$docs_dir/$project_id"
+        return
+    fi
+    
+    # If it's just a number (e.g., "001" or "1"), find by prefix
+    if [[ "$project_id" =~ ^[0-9]+$ ]]; then
+        local padded=$(printf "%03d" "$((10#$project_id))")
+        for dir in "$docs_dir"/"$padded"-*; do
+            if [[ -d "$dir" ]]; then
+                echo "$dir"
+                return
+            fi
+        done
+        echo ""
         return
     fi
 
-    local prefix="${BASH_REMATCH[1]}"
-
-    # Search for directories in documents/ that start with this prefix
-    local matches=()
-    if [[ -d "$docs_dir" ]]; then
+    # Extract numeric prefix from project_id (e.g., "004" from "004-whatever")
+    if [[ "$project_id" =~ ^([0-9]{3})- ]]; then
+        local prefix="${BASH_REMATCH[1]}"
+        
+        # Search for directories in documents/ that start with this prefix
         for dir in "$docs_dir"/"$prefix"-*; do
             if [[ -d "$dir" ]]; then
-                matches+=("$(basename "$dir")")
+                # Check for exact match first
+                if [[ "$(basename "$dir")" == "$project_id" ]]; then
+                    echo "$dir"
+                    return
+                fi
+            fi
+        done
+        
+        # If no exact match, return first directory with that prefix
+        for dir in "$docs_dir"/"$prefix"-*; do
+            if [[ -d "$dir" ]]; then
+                echo "$dir"
+                return
             fi
         done
     fi
-
-    # Handle results
-    if [[ ${#matches[@]} -eq 0 ]]; then
-        echo "$docs_dir/$branch_name"
-    elif [[ ${#matches[@]} -eq 1 ]]; then
-        echo "$docs_dir/${matches[0]}"
-    else
-        error "Multiple document directories found with prefix '$prefix': ${matches[*]}"
-        error "Please ensure only one document directory exists per numeric prefix."
-        echo "$docs_dir/$branch_name"
-    fi
+    
+    echo ""
 }
 
-# Get document paths for current branch
+# DEPRECATED: Legacy function for backward compatibility
+find_document_dir_by_prefix() {
+    find_document_dir_by_id "$@"
+}
+
+# Get document paths for current active project (Main-Only Workflow)
+# This is the primary function used by all scripts to get project paths
 get_document_paths() {
     local repo_root=$(get_repo_root)
-    local current_branch=$(get_current_branch)
+    local active_project=$(get_active_project)
     local has_git_repo="false"
 
     if has_git; then
         has_git_repo="true"
     fi
 
-    local document_dir=$(find_document_dir_by_prefix "$repo_root" "$current_branch")
+    local document_dir=""
+    if [[ -n "$active_project" ]]; then
+        document_dir=$(find_document_dir_by_id "$repo_root" "$active_project")
+    fi
+
+    # For backward compatibility, CURRENT_BRANCH is set to active_project
+    # This allows existing prompt files to work without modification
+    local current_branch="$active_project"
 
     cat <<EOF
 REPO_ROOT='$repo_root'
 CURRENT_BRANCH='$current_branch'
+ACTIVE_PROJECT='$active_project'
 HAS_GIT='$has_git_repo'
 DOCUMENT_DIR='$document_dir'
 DOCUMENT_SPEC='$document_dir/start.md'
@@ -359,6 +525,8 @@ validate_document_type() {
 
 # Export functions for use in subshells (silent)
 export -f log success warn error command_exists validate_file validate_dir ensure_dir validate_project_structure >/dev/null 2>&1
+export -f get_repo_root get_active_project set_active_project list_projects get_current_branch has_git >/dev/null 2>&1
+export -f find_document_dir_by_id find_document_dir_by_prefix get_document_paths >/dev/null 2>&1
 
 # ---------------------------------------------------------------
 # Naming & slug utilities

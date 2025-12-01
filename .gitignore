@@ -3,6 +3,10 @@
 *.swp
 *.swo
 
+# LaTeXKit Main-Only Workflow
+# .active_project is user-specific (tracks which project you're working on)
+.active_project
+
 # LaTeX build output directory
 latex_source/out
 

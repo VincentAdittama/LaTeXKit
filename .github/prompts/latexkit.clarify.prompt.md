@@ -21,10 +21,10 @@ Execution steps:
 
 1. **Detect current project**:
    - Run `.latexkit/scripts/bash/common.sh` function `get_document_paths` OR manually detect:
-     - Get current git branch: `git rev-parse --abbrev-ref HEAD`
-     - If not in git repo or on main branch, check `LATEXKIT_DOCUMENT` environment variable
-     - Set `CURRENT_BRANCH` to the branch name (e.g., `<project-branch-name>`)
-     - Set `DOCUMENT_DIR` to `documents/$CURRENT_BRANCH/`
+     - Check `.active_project` file in repo root for current project ID
+     - Or detect from current working directory if inside `documents/xxx`
+   - Set `CURRENT_BRANCH` to the project ID (e.g., `001-my-project`) for backward compatibility
+   - Set `DOCUMENT_DIR` to `documents/$CURRENT_BRANCH/`
    - All subsequent paths should be relative to `DOCUMENT_DIR`
    - Set `DOCUMENT_SPEC` to `$DOCUMENT_DIR/start.md`
    - If `DOCUMENT_DIR` doesn't exist or `start.md` missing, report error and suggest running `/latexkit.start` first
@@ -250,7 +250,7 @@ Execution steps:
    - Note: Does not create new checklists - only validates existing ones
 
 10. **Report completion (after questioning loop ends or early termination)**:
-    - Confirm current branch/document: `$CURRENT_BRANCH`
+    - Confirm current project: `$CURRENT_BRANCH`
     - Confirm document directory: `$DOCUMENT_DIR`
     - **Session Summary**:
       - Total clarification markers found: X (both `[NEEDS CLARIFICATION]` and `[NEED CLARIFICATION]` patterns)

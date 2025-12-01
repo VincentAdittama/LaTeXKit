@@ -18,10 +18,10 @@ This command creates a research strategy based on assignment requirements and av
 
 1. **Detect current project**:
    - Run `.latexkit/scripts/bash/common.sh` function `get_document_paths` OR manually detect:
-     - Get current git branch: `git rev-parse --abbrev-ref HEAD`
-     - If not in git repo or on main branch, check `LATEXKIT_DOCUMENT` environment variable
-     - Set `CURRENT_BRANCH` to the branch name (e.g., `001-project-name`)
-     - Set `DOCUMENT_DIR` to `documents/$CURRENT_BRANCH/`
+     - Check `.active_project` file in repo root for current project ID
+     - Or detect from current working directory if inside `documents/xxx`
+   - Set `CURRENT_BRANCH` to the project ID (e.g., `001-my-project`) for backward compatibility
+   - Set `DOCUMENT_DIR` to `documents/$CURRENT_BRANCH/`
    - All subsequent paths should be relative to `DOCUMENT_DIR`
    - If `DOCUMENT_DIR` doesn't exist, report error and suggest running `/latexkit.start` first
 
@@ -94,7 +94,7 @@ This command creates a research strategy based on assignment requirements and av
    - Do not output validation results to user
 
 9. **Report to user**:
-   - Confirm current branch/document: `$CURRENT_BRANCH`
+   - Confirm current project: `$CURRENT_BRANCH`
    - Confirm document directory: `$DOCUMENT_DIR`
    - Confirm research plan created
    - List recommended databases and search terms
