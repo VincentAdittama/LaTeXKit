@@ -485,25 +485,6 @@ cmd_new() {
     # Ensure documents directory exists
     mkdir -p "$docs_root"
     
-    # Find next project number (globally unique or per-semester? User said "sort of that thing", usually unique ID is better for finding)
-    # But if we nest, we might want unique IDs across the whole repo to avoid confusion.
-    # Let's scan ALL documents/ recursively to find the highest number to ensure global uniqueness.
-    
-    local highest=0
-    # Use find to list all directories in documents/ (max depth 2) matching NNN-*
-    while IFS= read -r dir; do
-        local dirname=$(basename "$dir")
-        if [[ "$dirname" =~ ^([0-9]{3})- ]]; then
-            local number=$((10#${BASH_REMATCH[1]}))
-            if [[ "$number" -gt "$highest" ]]; then
-                highest=$number
-            fi
-        fi
-    done < <(find "$PROJECT_ROOT/documents" -maxdepth 2 -type d -name "[0-9][0-9][0-9]-*")
-    
-    local next=$((highest + 1))
-    local project_num=$(printf "%03d" "$next")
-    
     # Generate project slug
     local slug=""
     if [[ -n "$short_name" ]]; then
@@ -518,7 +499,9 @@ cmd_new() {
         fi
     fi
     
-    local project_id="${project_num}-${slug}"
+    local project_id="${slug}"
+    
+
     local project_dir="$docs_root/$project_id"
     
     print_info "Project ID: $project_id"
@@ -633,7 +616,7 @@ EOF
     echo "  2. Run /latexkit.start in Copilot Chat to complete setup"
     echo "  3. Or use ./latexkit build to compile"
     echo ""
-    echo "Switch projects anytime with: ./latexkit switch $project_num"
+    echo "Switch projects anytime with: ./latexkit switch $project_id"
 }
 
 # Command: switch (change active project)
@@ -654,7 +637,7 @@ cmd_switch() {
             for dir in "$PROJECT_ROOT/documents"/*; do
                 if [[ -d "$dir" ]]; then
                     local dirname=$(basename "$dir")
-                    if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
+                    if [[ ! "$dirname" =~ ^\. ]]; then
                         if [[ "$dirname" == "$active" ]]; then
                             echo -e "  ${GREEN}*${NC} $dirname ${GREEN}(active)${NC}"
                         else
@@ -742,7 +725,7 @@ cmd_projects() {
         for dir in "$PROJECT_ROOT/documents"/*; do
             if [[ -d "$dir" ]]; then
                 local dirname=$(basename "$dir")
-                if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
+                if [[ ! "$dirname" =~ ^\. ]]; then
                     if [[ "$dirname" == "$active" ]]; then
                         echo -e "  ${GREEN}*${NC} $dirname ${GREEN}(active)${NC}"
                     else

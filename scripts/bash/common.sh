@@ -133,8 +133,8 @@ get_active_project() {
         for dir in "$docs_dir"/*; do
             if [[ -d "$dir" ]]; then
                 local dirname=$(basename "$dir")
-                # Check if it follows naming convention NNN-*
-                if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
+                # Check if it is a project (has start.md or config)
+                if [[ -f "$dir/start.md" || -f "$dir/latexkit.config.json" ]]; then
                     # Get modification time
                     local mtime
                     if [[ "$(uname)" == "Darwin" ]]; then
@@ -214,7 +214,7 @@ list_projects() {
         local indent="$2"
         local dirname=$(basename "$dir")
         
-        if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
+        if [[ ! "$dirname" =~ ^\. ]]; then
             if [[ "$dirname" == "$active_project" ]]; then
                 echo "${indent}* $dirname (active)"
             else
@@ -227,14 +227,14 @@ list_projects() {
     for dir in "$docs_dir"/*; do
         if [[ -d "$dir" ]]; then
             local dirname=$(basename "$dir")
-            if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
+            if [[ -f "$dir/start.md" || -f "$dir/latexkit.config.json" ]]; then
                 print_project "$dir" "  "
             elif [[ ! "$dirname" =~ ^\. ]]; then
                 # Possible semester folder (not hidden, not a project)
                 # Check if it contains projects
                 local has_projects=false
                 for subdir in "$dir"/*; do
-                    if [[ -d "$subdir" && "$(basename "$subdir")" =~ ^[0-9]{3}- ]]; then
+                    if [[ -d "$subdir" && (-f "$subdir/start.md" || -f "$subdir/latexkit.config.json") ]]; then
                         has_projects=true
                         break
                     fi
@@ -294,9 +294,8 @@ check_document_branch() {
         return 0
     fi
 
-    if [[ ! "$branch" =~ ^[0-9]{3}- ]]; then
-        error "Not on a document branch. Current branch: $branch"
-        error "Document branches should be named like: 001-assignment-name"
+    if [[ -z "$branch" ]]; then
+        error "Not on a document branch."
         return 1
     fi
 
