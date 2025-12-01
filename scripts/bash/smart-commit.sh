@@ -417,9 +417,9 @@ main() {
     log "Auto-staging all changes..."
     git add -A
     
-    # Get current branch
+    # Get active project (formerly current branch)
     local current_branch=$(get_current_branch)
-    log "Current branch: $current_branch"
+    log "Active Project: $current_branch"
     
     # Get or detect workflow stage
     if [[ -z "$workflow_stage" ]]; then
@@ -456,7 +456,7 @@ main() {
     echo -e "${YELLOW}Label:${NC} $commit_label"
     echo -e "${YELLOW}Stage:${NC} $workflow_stage"
     echo -e "${YELLOW}Iteration:${NC} $iteration"
-    echo -e "${YELLOW}Branch:${NC} $current_branch"
+    echo -e "${YELLOW}Context:${NC} $current_branch"
     echo ""
     echo -e "${YELLOW}Change Categories:${NC}"
     echo -e "$commit_categories"

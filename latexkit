@@ -782,242 +782,53 @@ cmd_current() {
 }
 
 # Command: reset (destructive clean - strips to template)
+# Command: reset (destructive clean - strips to template)
 cmd_reset() {
     print_header
-    
-    # Detect workflow type
-    local is_copilot_workflow=false
-    if [[ -d "documents" ]]; then
-        is_copilot_workflow=true
-    fi
     
     echo -e "${RED}⚠️  WARNING: DESTRUCTIVE OPERATION ⚠️${NC}"
     echo ""
     
-    if [[ "$is_copilot_workflow" == true ]]; then
-        # Copilot workflow - interactive reset
-        echo -e "${CYAN}What would you like to reset?${NC}"
-        echo "  [1] This project only"
-        echo "  [2] All projects"
-        echo "  [3] Cancel"
-        echo ""
-        read -p "Select option [1-3]: " -r scope_choice
-        echo ""
+    echo -e "${CYAN}What would you like to reset?${NC}"
+    echo "  [1] Active Project (Reset to template state, keep start.md/config)"
+    echo "  [2] All Projects (Delete everything in documents/)"
+    echo "  [3] Cancel"
+    echo ""
+    read -p "Select option [1-3]: " -r scope_choice
+    echo ""
+    
+    if [[ "$scope_choice" == "3" ]]; then
+        print_info "Reset cancelled"
+        exit 0
+    fi
+    
+    if [[ "$scope_choice" == "1" ]]; then
+        # Reset active project
+        local active=$(get_active_project)
         
-        if [[ "$scope_choice" == "3" ]]; then
-            print_info "Reset cancelled"
-            exit 0
+        if [[ -z "$active" ]]; then
+            print_error "No active project found."
+            exit 1
         fi
         
-        if [[ "$scope_choice" == "1" ]]; then
-            # Reset current project only
-            
-            # Get current branch and project
-            if ! command -v git &> /dev/null || [[ ! -d ".git" ]]; then
-                print_error "Git not available or not in a git repository"
-                exit 1
-            fi
-            
-            local current_branch=$(git branch --show-current 2>/dev/null)
-            if [[ -z "$current_branch" ]] || [[ "$current_branch" == "main" ]] || [[ "$current_branch" == "master" ]]; then
-                print_error "Not on a project branch. Please switch to a project branch first."
-                exit 1
-            fi
-            
-            # Extract project number from branch (e.g., "001-project-name" -> "001")
-            local project_num=$(echo "$current_branch" | grep -o '^[0-9]\{3\}')
-            if [[ -z "$project_num" ]]; then
-                print_error "Current branch does not follow naming convention (NNN-project-name)"
-                exit 1
-            fi
-            
-            # Find project directory
-            local project_dir=$(find documents -maxdepth 1 -type d -name "${project_num}-*" 2>/dev/null | head -n 1)
-            if [[ -z "$project_dir" ]]; then
-                print_error "Project directory not found: documents/${project_num}-*"
-                exit 1
-            fi
-            
-            echo -e "${YELLOW}This will:${NC}"
-            echo "  • Delete project folder: $project_dir"
-            echo "  • Create RESET commit on current branch"
-            echo "  • Ask about merging to main"
-            echo ""
-            echo -e "${RED}This action CANNOT be undone!${NC}"
-            echo ""
-            read -p "Type 'RESET' to confirm: " -r
-            echo
-            
-            if [[ "$REPLY" != "RESET" ]]; then
-                print_info "Reset cancelled"
-                exit 0
-            fi
-            
-            # Execute reset
-            if [[ -f "$project_dir/start.md" ]]; then
-                print_info "Resetting project..."
-                
-                # Backup start.md and config
-                cp "$project_dir/start.md" "$project_dir/start.md.bak"
-                cp "$project_dir/latexkit.config.json" "$project_dir/latexkit.config.json.bak"
-                
-                # Nuke
-                rm -rf "$project_dir"/*
-                
-                # Restore
-                mv "$project_dir/start.md.bak" "$project_dir/start.md"
-                mv "$project_dir/latexkit.config.json.bak" "$project_dir/latexkit.config.json"
-                
-                # Re-create structure
-                mkdir -p "$project_dir"/{checklists,latex_source/{sections,images},build,assignment_info,zotero_export}
-                mkdir -p "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}
-                
-                # Add .gitkeep
-                for dir in "$project_dir"/build "$project_dir"/assignment_info "$project_dir"/zotero_export \
-                           "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}; do
-                    touch "$dir/.gitkeep"
-                done
-                
-                # Get layout from config
-                local layout=$(grep -o '"layout": "[^"]*"' "$project_dir/latexkit.config.json" | cut -d'"' -f4)
-                if [[ -z "$layout" ]]; then layout="academic-assignment"; fi
-                
-                # Copy layout
-                print_info "Restoring layout: $layout"
-                cp -r "$REGISTRY_DIR/layouts/$layout/sections"/* "$project_dir/latex_source/sections/" 2>/dev/null || true
-                
-                # Restore main.tex
-                cat > "$project_dir/latex_source/main.tex" <<EOF
-%!TeX root = main.tex
-%% LATEXKIT CONFIGURATION
-%% This path points to the shared template registry.
-\newcommand{\latexKitPath}{../../../.latexkit/registry/layouts/$layout}
-
-$(cat "$REGISTRY_DIR/layouts/$layout/main.tex")
-EOF
-                sed -i '' 's|\input{preamble.tex}|\input{\latexKitPath/preamble.tex}|g' "$project_dir/latex_source/main.tex"
-                
-                print_success "Project reset successfully!"
-            else
-                print_error "start.md not found, cannot safely reset."
-            fi
-            
-            # Commit the reset
-            print_info "Creating RESET commit..."
-            git add -A
-            git commit -m "RESET: Remove project ${project_num}" -m "Deleted project folder and all contents" 2>/dev/null || print_warning "Nothing to commit or commit failed"
-            
-            # Ask about merging to main
-            echo ""
-            echo -e "${CYAN}Would you like to merge this branch to main?${NC}"
-            read -p "Merge to main? [y/N]: " -r merge_choice
-            echo ""
-            
-            if [[ "$merge_choice" =~ ^[Yy]$ ]]; then
-                print_info "Switching to main branch..."
-                local main_branch="main"
-                git checkout main 2>/dev/null || {
-                    git checkout master 2>/dev/null && main_branch="master"
-                }
-                
-                if [[ $? -eq 0 ]]; then
-                    print_info "Merging branch '$current_branch' into $main_branch..."
-                    if git merge --no-ff "$current_branch" --no-edit 2>&1 | tee /tmp/latexkit_merge_output.txt; then
-                        print_success "Successfully merged '$current_branch' into $main_branch"
-                        print_info "Branch '$current_branch' kept for reference"
-                        print_info "Now on branch: $main_branch"
-                    else
-                        print_error "Merge failed!"
-                        cat /tmp/latexkit_merge_output.txt
-                        print_warning "Staying on branch: $main_branch"
-                        print_info "You may need to resolve conflicts manually"
-                    fi
-                    rm -f /tmp/latexkit_merge_output.txt
-                else
-                    print_error "Could not switch to main/master branch"
-                    print_info "Staying on branch: $current_branch"
-                fi
-            else
-                print_info "Staying on branch: $current_branch"
-            fi
-            
-            echo ""
-            print_success "Reset complete!"
-            
-        elif [[ "$scope_choice" == "2" ]]; then
-            # Reset all projects
-            
-            echo -e "${YELLOW}This will:${NC}"
-            echo "  • Delete entire documents/ directory"
-            echo "  • Create RESET commit"
-            echo "  • Merge to main branch"
-            echo ""
-            echo -e "${RED}This action CANNOT be undone!${NC}"
-            echo ""
-            read -p "Type 'RESET' to confirm: " -r
-            echo
-            
-            if [[ "$REPLY" != "RESET" ]]; then
-                print_info "Reset cancelled"
-                exit 0
-            fi
-            
-            # Delete all projects
-            print_info "Deleting all projects..."
-            rm -rf documents/
-            print_success "All projects deleted"
-            
-            # Commit the reset
-            print_info "Creating RESET commit..."
-            if command -v git &> /dev/null && [[ -d ".git" ]]; then
-                local current_branch=$(git branch --show-current 2>/dev/null)
-                git add -A
-                git commit -m "RESET: Remove all projects" -m "Deleted entire documents directory" 2>/dev/null || print_warning "Nothing to commit or commit failed"
-                
-                # Merge to main
-                print_info "Switching to main branch..."
-                local main_branch="main"
-                git checkout main 2>/dev/null || {
-                    git checkout master 2>/dev/null && main_branch="master"
-                }
-                
-                if [[ $? -eq 0 ]]; then
-                    if [[ -n "$current_branch" ]] && [[ "$current_branch" != "main" ]] && [[ "$current_branch" != "master" ]]; then
-                        print_info "Merging branch '$current_branch' into $main_branch..."
-                        if git merge --no-ff "$current_branch" --no-edit 2>&1; then
-                            print_success "Successfully merged '$current_branch' into $main_branch"
-                        else
-                            print_warning "Merge encountered issues"
-                        fi
-                    else
-                        print_info "Already on $main_branch, no merge needed"
-                    fi
-                else
-                    print_warning "Could not switch to main/master branch"
-                fi
-            fi
-            
-            echo ""
-            print_success "Reset complete!"
-            
+        local project_dir=""
+        if declare -f find_document_dir_by_id >/dev/null; then
+            project_dir=$(find_document_dir_by_id "$PROJECT_ROOT" "$active")
         else
-            print_error "Invalid option selected"
+            project_dir="$PROJECT_ROOT/documents/$active"
+        fi
+        
+        if [[ -z "$project_dir" || ! -d "$project_dir" ]]; then
+            print_error "Project directory not found for: $active"
             exit 1
         fi
         
-    else
-        # Traditional CLI workflow reset
-        if [[ ! -f "$CONFIG_FILE" ]]; then
-            print_error "No LaTeXKit project found in current directory!"
-            exit 1
-        fi
-        
-        echo "This will:"
-        echo "  • Delete all content in latex_source/"
-        echo "  • Remove all build artifacts"
-        echo "  • Reset to a clean template state (Reference Mode)"
+        echo -e "${YELLOW}This will:${NC}"
+        echo "  • Delete all content in: $project_dir"
+        echo "  • Restore layout from template"
+        echo "  • PRESERVE: start.md and latexkit.config.json"
         echo ""
-        echo -e "${YELLOW}This action CANNOT be undone!${NC}"
+        echo -e "${RED}This action CANNOT be undone!${NC}"
         echo ""
         read -p "Type 'RESET' to confirm: " -r
         echo
@@ -1027,72 +838,108 @@ EOF
             exit 0
         fi
         
-        # Get current layout from config
-        local layout="academic-assignment"
-        if command -v jq &> /dev/null; then
-            layout=$(jq -r '.project.layout' "$CONFIG_FILE")
-        fi
-        
-        # Check if layout exists
-        if [[ ! -d "$REGISTRY_DIR/layouts/$layout" ]]; then
-            print_error "Layout '$layout' not found in registry!"
-            print_info "Defaulting to 'academic-assignment' layout"
-            layout="academic-assignment"
-        fi
-        
-        print_info "Resetting project to template state..."
-        
-        # Remove existing directories
-        rm -rf latex_source/
-        rm -rf build/
-        
-        # Recreate structure
-        mkdir -p latex_source/{sections,images}
-        
-        # Copy fresh layout files (Sections only)
-        print_info "Restoring layout structure: $layout"
-        cp -r "$REGISTRY_DIR/layouts/$layout/sections" latex_source/
-        
-        # Recreate main.tex with references
-        print_info "Restoring main.tex with template references..."
-        local original_main="$REGISTRY_DIR/layouts/$layout/main.tex"
-        
-        echo "%!TeX root = main.tex" > latex_source/main.tex
-        echo "%% LATEXKIT CONFIGURATION" >> latex_source/main.tex
-        echo "%% This path points to the shared template registry." >> latex_source/main.tex
-        echo "\newcommand{\latexKitPath}{../registry/layouts/$layout}" >> latex_source/main.tex
-        echo "" >> latex_source/main.tex
-        
-        cat "$original_main" >> latex_source/main.tex
-        sed -i '' 's|\\input{preamble.tex}|\\input{\\latexKitPath/preamble.tex}|g' latex_source/main.tex
-        
-        # Reset config file
-        print_info "Resetting configuration..."
-        cat > "$CONFIG_FILE" <<EOF
-{
-  "project": {
-    "name": "My LaTeX Project",
-    "layout": "$layout",
-    "language": "indonesian"
-  },
-  "components": [],
-  "style": {
-    "font": "Times New Roman",
-    "fontSize": "12pt",
-    "lineSpacing": 1.5,
-    "margin": "1in"
-  },
-  "paths": {
-    "source": "latex_source",
-    "output": "build",
-    "bibliography": "zotero_export/<your-export>.bib"
-  }
-}
+        # Execute reset
+        if [[ -f "$project_dir/start.md" ]]; then
+            print_info "Resetting project..."
+            
+            # Backup start.md and config
+            cp "$project_dir/start.md" "$project_dir/start.md.bak"
+            if [[ -f "$project_dir/latexkit.config.json" ]]; then
+                cp "$project_dir/latexkit.config.json" "$project_dir/latexkit.config.json.bak"
+            fi
+            
+            # Nuke
+            rm -rf "$project_dir"/*
+            
+            # Restore
+            mv "$project_dir/start.md.bak" "$project_dir/start.md"
+            if [[ -f "$project_dir/latexkit.config.json.bak" ]]; then
+                mv "$project_dir/latexkit.config.json.bak" "$project_dir/latexkit.config.json"
+            fi
+            
+            # Re-create structure
+            mkdir -p "$project_dir"/{checklists,latex_source/{sections,images},build,assignment_info,zotero_export}
+            mkdir -p "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}
+            
+            # Add .gitkeep
+            for dir in "$project_dir"/build "$project_dir"/assignment_info "$project_dir"/zotero_export \
+                       "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}; do
+                touch "$dir/.gitkeep"
+            done
+            
+            # Get layout from config
+            local layout="academic-assignment"
+            if [[ -f "$project_dir/latexkit.config.json" ]]; then
+                layout=$(grep -o '"layout": "[^"]*"' "$project_dir/latexkit.config.json" | cut -d'"' -f4)
+            fi
+            if [[ -z "$layout" ]]; then layout="academic-assignment"; fi
+            
+            # Copy layout
+            print_info "Restoring layout: $layout"
+            cp -r "$REGISTRY_DIR/layouts/$layout/sections"/* "$project_dir/latex_source/sections/" 2>/dev/null || true
+            
+            # Calculate relative path to registry
+            # We need to determine depth.
+            # documents/project -> 3 levels
+            # documents/semester/project -> 4 levels
+            
+            # Simple check: count slashes in relative path from doc root
+            local rel_path="${project_dir#$PROJECT_ROOT/documents/}"
+            local depth=$(echo "$rel_path" | tr -cd '/' | wc -c)
+            # depth 0 = project (documents/project) -> need ../../../
+            # depth 1 = semester/project (documents/semester/project) -> need ../../../../
+            
+            local registry_rel_path="../../../.latexkit/registry/layouts/$layout"
+            if [[ "$depth" -ge 1 ]]; then
+                registry_rel_path="../../../../.latexkit/registry/layouts/$layout"
+            fi
+            
+            # Restore main.tex
+            cat > "$project_dir/latex_source/main.tex" <<EOF
+%!TeX root = main.tex
+%% LATEXKIT CONFIGURATION
+%% This path points to the shared template registry.
+\newcommand{\latexKitPath}{$registry_rel_path}
+
+$(cat "$REGISTRY_DIR/layouts/$layout/main.tex")
 EOF
+            sed -i '' 's|\input{preamble.tex}|\input{\latexKitPath/preamble.tex}|g' "$project_dir/latex_source/main.tex"
+            
+            print_success "Project reset successfully!"
+        else
+            print_error "start.md not found, cannot safely reset. (Manual deletion recommended if corrupted)"
+        fi
         
+    elif [[ "$scope_choice" == "2" ]]; then
+        # Reset all projects
+        
+        echo -e "${YELLOW}This will PERMANENTLY DELETE:${NC}"
+        echo "  • The entire 'documents/' directory"
+        echo "  • All projects and work within it"
         echo ""
-        print_success "Project reset to clean template state (Reference Mode)!"
-        print_info "Layout: $layout"
+        echo -e "${RED}This action CANNOT be undone!${NC}"
+        echo ""
+        read -p "Type 'RESET' to confirm: " -r
+        echo
+        
+        if [[ "$REPLY" != "RESET" ]]; then
+            print_info "Reset cancelled"
+            exit 0
+        fi
+        
+        # Delete all projects
+        print_info "Deleting all projects..."
+        rm -rf "$PROJECT_ROOT/documents"
+        mkdir -p "$PROJECT_ROOT/documents"
+        
+        # Clear active project
+        set_workspace_state "ACTIVE_PROJECT" ""
+        
+        print_success "All projects deleted. documents/ directory is clean."
+        
+    else
+        print_error "Invalid option selected"
+        exit 1
     fi
 }
 
