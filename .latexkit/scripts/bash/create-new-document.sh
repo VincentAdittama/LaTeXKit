@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # =================================================================
 # create-new-document.sh
-# Creates a new LaTeX document with git branching support
+# Creates a new LaTeX document project (Main-Only Workflow)
+# Projects are managed as folders in documents/, not git branches
 # Enhanced with speckit-style workflow integration
 # =================================================================
 
@@ -103,54 +104,50 @@ fi
 
 cd "$REPO_ROOT"
 
-# Check if we're on main branch or if git is available
-CURRENT_BRANCH=""
-if [ "$HAS_GIT" = true ]; then
-    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-fi
+# =================================================================
+# MAIN-ONLY WORKFLOW (Trunk-Based Development)
+# =================================================================
+# All projects live in documents/ folder on the main branch.
+# No git branching is used for projects.
+# Projects are managed via .active_project file.
+# =================================================================
 
-# If not on main/master branch, assume we're working on existing document
-if [ "$HAS_GIT" = true ] && [ "$CURRENT_BRANCH" != "main" ] && [ "$CURRENT_BRANCH" != "master" ]; then
-    # We're on a document branch - validate and check current implementation
-    DOCUMENT_DIR="$REPO_ROOT/documents/$CURRENT_BRANCH"
+# Check if there's already an active project (edit mode)
+ACTIVE_PROJECT_FILE="$REPO_ROOT/.active_project"
+if [ -f "$ACTIVE_PROJECT_FILE" ]; then
+    CURRENT_PROJECT=$(cat "$ACTIVE_PROJECT_FILE" | tr -d '\n')
+    DOCUMENT_DIR="$REPO_ROOT/documents/$CURRENT_PROJECT"
     
-    if [ ! -d "$DOCUMENT_DIR" ]; then
-        echo "Error: Document directory $DOCUMENT_DIR does not exist for branch $CURRENT_BRANCH" >&2
-        echo "Please run this command from the main branch to create a new document." >&2
-        exit 1
+    if [ -d "$DOCUMENT_DIR" ]; then
+        # Active project exists - report edit mode
+        START_FILE="$DOCUMENT_DIR/start.md"
+        
+        # Validate project structure
+        if validate_project_structure "$DOCUMENT_DIR" 2>/dev/null; then
+            >&2 echo "✓ Project structure is valid for $CURRENT_PROJECT"
+        else
+            >&2 echo "⚠ Project structure has issues for $CURRENT_PROJECT"
+        fi
+        
+        if [ -f "$START_FILE" ]; then
+            >&2 echo "✓ Project start file exists: $START_FILE"
+        else
+            >&2 echo "⚠ Project start file missing: $START_FILE"
+        fi
+        
+        >&2 echo "Active project: $CURRENT_PROJECT"
+        >&2 echo "Document directory: $DOCUMENT_DIR"
+        >&2 echo "To create a NEW project, clear .active_project first or use './latexkit new'"
+        
+        export LATEXKIT_DOCUMENT="$CURRENT_PROJECT"
+        
+        if $JSON_MODE; then
+            printf '{"BRANCH_NAME":"%s","START_FILE":"%s","DOCUMENT_DIR":"%s","DOC_NUM":"","DOC_TYPE":"existing","mode":"edit"}\n' "$CURRENT_PROJECT" "$START_FILE" "$DOCUMENT_DIR"
+        else
+            echo "Mode: edit (existing document)"
+        fi
+        exit 0
     fi
-    
-    # Validate project structure
-    source "${SCRIPT_DIR}/common.sh"
-    if validate_project_structure "$DOCUMENT_DIR"; then
-        echo "✓ Project structure is valid for branch $CURRENT_BRANCH"
-    else
-        echo "⚠ Project structure has issues for branch $CURRENT_BRANCH"
-        echo "Consider running validation or recreating missing files."
-    fi
-    
-    # Check for start file
-    START_FILE="$DOCUMENT_DIR/start.md"
-    if [ -f "$START_FILE" ]; then
-        echo "✓ Project start file exists: $START_FILE"
-    else
-        echo "⚠ Project start file missing: $START_FILE"
-    fi
-    
-    # Report current status
-    echo "Current branch: $CURRENT_BRANCH"
-    echo "Document directory: $DOCUMENT_DIR"
-    echo "Document is ready for editing. Use other LaTeXKit commands to continue work."
-    
-    # Set environment variable
-    export LATEXKIT_DOCUMENT="$CURRENT_BRANCH"
-    
-    if $JSON_MODE; then
-        printf '{"BRANCH_NAME":"%s","START_FILE":"%s","DOCUMENT_DIR":"%s","DOC_NUM":"","DOC_TYPE":"existing","mode":"edit"}\n' "$CURRENT_BRANCH" "$START_FILE" "$DOCUMENT_DIR"
-    else
-        echo "Mode: edit (existing document)"
-    fi
-    exit 0
 fi
 
 # Continue with creating new document (only on main/master branch)
@@ -204,12 +201,15 @@ if [ ${#BRANCH_NAME} -gt $MAX_BRANCH_LENGTH ]; then
     >&2 echo "[latexkit] Truncated to: $BRANCH_NAME (${#BRANCH_NAME} bytes)"
 fi
 
-# Create git branch if available
-if [ "$HAS_GIT" = true ]; then
-    git checkout -b "$BRANCH_NAME"
-else
-    >&2 echo "[latexkit] Warning: Git repository not detected; skipped branch creation for $BRANCH_NAME"
-fi
+# =================================================================
+# MAIN-ONLY WORKFLOW: No branch creation
+# =================================================================
+# Projects are managed as folders in documents/, not as git branches.
+# The .active_project file tracks which project is currently active.
+# =================================================================
+
+# No git checkout - we stay on main branch
+>&2 echo "[latexkit] Creating project folder: $BRANCH_NAME (Main-Only Workflow)"
 
 DOCUMENT_DIR="$DOCS_DIR/$BRANCH_NAME"
 mkdir -p "$DOCUMENT_DIR"
@@ -259,13 +259,23 @@ fi
 # Set the LATEXKIT_DOCUMENT environment variable
 export LATEXKIT_DOCUMENT="$BRANCH_NAME"
 
+# =================================================================
+# MAIN-ONLY WORKFLOW: Set active project
+# =================================================================
+# Write the project ID to .active_project file
+# This replaces the need for git branch context
+# =================================================================
+echo "$BRANCH_NAME" > "$REPO_ROOT/.active_project"
+>&2 echo "[latexkit] Active project set to: $BRANCH_NAME"
+
 if $JSON_MODE; then
-    printf '{"BRANCH_NAME":"%s","START_FILE":"%s","DOCUMENT_DIR":"%s","DOC_NUM":"%s","DOC_TYPE":"%s"}\n' "$BRANCH_NAME" "$START_FILE" "$DOCUMENT_DIR" "$DOC_NUM" "$DOC_TYPE"
+    printf '{"BRANCH_NAME":"%s","START_FILE":"%s","DOCUMENT_DIR":"%s","DOC_NUM":"%s","DOC_TYPE":"%s","ACTIVE_PROJECT":"%s"}\n' "$BRANCH_NAME" "$START_FILE" "$DOCUMENT_DIR" "$DOC_NUM" "$DOC_TYPE" "$BRANCH_NAME"
 else
     echo "BRANCH_NAME: $BRANCH_NAME"
     echo "START_FILE: $START_FILE"
     echo "DOCUMENT_DIR: $DOCUMENT_DIR"
     echo "DOC_NUM: $DOC_NUM"
     echo "DOC_TYPE: $DOC_TYPE"
+    echo "ACTIVE_PROJECT: $BRANCH_NAME"
     echo "LATEXKIT_DOCUMENT environment variable set to: $BRANCH_NAME"
 fi

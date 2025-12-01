@@ -153,32 +153,60 @@ get_workflow_stage() {
     echo "CHORE"
 }
 
-# Get next sequential number for current branch (across all stages)
-get_next_iteration() {
-    # Get current branch
-    local current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+# =================================================================
+# MAIN-ONLY WORKFLOW: Path-Scoped Iteration Counting
+# =================================================================
+# In Main-Only (Trunk-Based) workflow, all commits are on main branch.
+# We scope iteration counting to the ACTIVE PROJECT folder to ensure
+# each project has its own independent sequence (01, 02, 03...).
+# =================================================================
+
+# Get the active project path from .active_project file
+get_active_project_path() {
+    local repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    local active_project_file="$repo_root/.active_project"
     
-    # Find the merge-base with main/master to know where this branch started
-    local base_branch="main"
-    if ! git rev-parse --verify main >/dev/null 2>&1; then
-        base_branch="master"
+    if [[ -f "$active_project_file" ]]; then
+        local project_id=$(cat "$active_project_file" | tr -d '\n')
+        if [[ -n "$project_id" ]]; then
+            echo "documents/$project_id"
+            return 0
+        fi
     fi
     
-    # Get all commits made ON this branch (excluding inherited commits from main)
+    # Fallback: No active project
+    echo ""
+    return 1
+}
+
+# Get next sequential number for active project (path-scoped)
+get_next_iteration() {
+    local project_path="${1:-$(get_active_project_path)}"
+    
+    # =================================================================
+    # MAIN-ONLY WORKFLOW: Scope git log to project folder
+    # =================================================================
+    # Instead of counting all commits on branch (which would mix
+    # all projects), we filter by path to get project-specific count.
+    # =================================================================
+    
     local all_commits=""
-    if [[ "$current_branch" == "main" || "$current_branch" == "master" ]]; then
-        # On main branch - don't use any commits (should always start from 01)
-        all_commits=""
-    else
-        # On feature branch - only get commits created on THIS branch
-        local merge_base=$(git merge-base "$base_branch" HEAD 2>/dev/null || echo "")
-        if [[ -n "$merge_base" ]]; then
-            # Get commits after the branch point, excluding merges
-            all_commits=$(git log --oneline --no-merges --grep="^[A-Z]\+-[0-9]\{2\}" "$merge_base..HEAD" 2>/dev/null || true)
-        else
-            # No merge base found (orphan branch or first branch), get all commits on branch
-            all_commits=$(git log --oneline --no-merges --grep="^[A-Z]\+-[0-9]\{2\}" HEAD 2>/dev/null || true)
+    
+    if [[ -n "$project_path" ]]; then
+        # Path-scoped: Only count commits that touched this project's folder
+        # This ensures each project has its own iteration sequence
+        all_commits=$(git log --oneline --no-merges --grep="^[A-Z]\+-[0-9]\{2\}" HEAD -- "$project_path" 2>/dev/null || true)
+        
+        # Debug info (only in verbose mode)
+        if [[ "${LATEXKIT_VERBOSE:-}" == "true" ]]; then
+            >&2 echo "[latexkit] Counting iterations for path: $project_path"
+            >&2 echo "[latexkit] Found commits: $(echo "$all_commits" | wc -l | tr -d ' ')"
         fi
+    else
+        # No active project - fallback to global count (legacy behavior)
+        # This should rarely happen in normal workflow
+        >&2 echo "[latexkit] Warning: No active project found, using global iteration count"
+        all_commits=$(git log --oneline --no-merges --grep="^[A-Z]\+-[0-9]\{2\}" HEAD 2>/dev/null || true)
     fi
     
     if [[ -z "$all_commits" ]]; then

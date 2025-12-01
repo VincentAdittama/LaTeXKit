@@ -179,7 +179,8 @@ The text the user typed after `/latexkit.start` is the assignment brief or descr
    - Do not output validation results to user
 
 10. **Report to user**:
-   - State: "New project initialized on branch `<BRANCH_NAME>` with document directory `<DOC_NUM>-<short-name>`."
+   - State: "New project initialized: `<DOC_NUM>-<short-name>` (Main-Only Workflow)."
+   - Do NOT mention branch names - we're using folder-based workflow
    - If group assignment info was provided, add: "Team metadata recorded in start file."
    - If [NEEDS CLARIFICATION] items exist (max 3), add: "Remaining clarifications needed: [list]. Run `/latexkit.clarify` if needed."
    - For academic documents, add: "Export your Zotero library to `zotero_export/` (include a .bib file and any attachments) so the LaTeX templates can use it during conversion."
@@ -240,7 +241,8 @@ Document is ready for next phase when:
 - ✅ **New document mode**:
   - Project folder created with naming convention: `NNN-short-name` (three-digit prefix + descriptive name)
   - Document directory structure is created at `documents/NNN-short-name/`
-  - `.active_project` file updated to point to new project
+  - `.active_project` file updated to point to new project (Main-Only Workflow)
+  - **NO git branch created** - all work stays on `main` branch
   - Complete directory structure exists:
     - `checklists/`, `latex_source/`, `build/`
     - `assignment_info/`, `zotero_export/`
@@ -253,7 +255,7 @@ Document is ready for next phase when:
   - Constitution check passes
   - No blocking errors
 - ✅ **Edit mode** (active project exists):
-  - Current project confirmed
+  - Current project confirmed (from `.active_project` file)
   - Document directory exists and is accessible
   - Project structure validated
   - Start file updated with any new information

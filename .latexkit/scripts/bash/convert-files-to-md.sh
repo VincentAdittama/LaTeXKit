@@ -93,7 +93,7 @@ check_dependencies() {
 # Prompt for scope selection
 select_scope() {
     echo -e "${CYAN}Select conversion scope:${NC}"
-    echo -e "  ${YELLOW}1)${NC} Current project (active git branch)"
+    echo -e "  ${YELLOW}1)${NC} Current project (from .active_project)"
     echo -e "  ${YELLOW}2)${NC} All projects"
     echo -e "  ${YELLOW}3)${NC} Custom path"
     echo ""
@@ -159,36 +159,40 @@ get_target_dirs() {
             fi
             ;;
         "current")
-            # Detect current project from active git branch
-            local current_branch=$(git -C "$WORKSPACE_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null)
+            # =================================================================
+            # MAIN-ONLY WORKFLOW: Detect project from .active_project file
+            # =================================================================
+            local active_project_file="$WORKSPACE_ROOT/.active_project"
+            local active_project=""
             
-            if [ -z "$current_branch" ]; then
-                echo -e "${RED}✗ Not in a git repository${NC}" >&2
-                exit 1
+            if [ -f "$active_project_file" ]; then
+                active_project=$(cat "$active_project_file" | tr -d '\n')
             fi
             
-            # Safety: do not run conversions on the main/master branch
-            if [ "$current_branch" = "main" ] || [ "$current_branch" = "master" ]; then
-                echo -e "${RED}✗ Operation cancelled: current branch is \"$current_branch\".${NC}" >&2
-                echo -e "${YELLOW}Switch to a project branch and run this task there.${NC}" >&2
-                echo -e "  ${BLUE}git checkout <project-branch>${NC}" >&2
+            if [ -z "$active_project" ]; then
+                echo -e "${RED}✗ No active project found${NC}" >&2
+                echo -e "${YELLOW}Set an active project first:${NC}" >&2
+                echo -e "  ${BLUE}./latexkit switch <project-id>${NC}" >&2
+                echo -e "  ${BLUE}./latexkit new \"Project Description\"${NC}" >&2
                 echo "" >&2
-                echo -e "${YELLOW}Available project branches:${NC}" >&2
-                git -C "$WORKSPACE_ROOT" branch --format='%(refname:short)' | grep -vE '^main$|^master$' | sed 's/^/  /' >&2 || true
+                echo -e "${YELLOW}Available projects:${NC}" >&2
+                if [ -d "$WORKSPACE_ROOT/documents" ]; then
+                    ls -1 "$WORKSPACE_ROOT/documents" 2>/dev/null | grep -E '^[0-9]{3}-' | sed 's/^/  /' >&2 || echo "  (none)" >&2
+                fi
                 exit 1
             fi
             
-            # Map branch name to project directory
-            local project_dir="$WORKSPACE_ROOT/documents/$current_branch"
+            # Map active project to project directory
+            local project_dir="$WORKSPACE_ROOT/documents/$active_project"
             
             if [ -d "$project_dir" ]; then
                 dirs+=("$project_dir")
-                echo -e "${GREEN}✓ Using current branch project: ${YELLOW}$current_branch${NC}" >&2
+                echo -e "${GREEN}✓ Using active project: ${YELLOW}$active_project${NC}" >&2
                 echo "" >&2
             else
-                echo -e "${RED}✗ No project directory found for branch: $current_branch${NC}" >&2
-                echo -e "${YELLOW}Expected path: documents/$current_branch${NC}" >&2
-                echo -e "${YELLOW}Tip: Ensure the branch name matches the project directory name${NC}" >&2
+                echo -e "${RED}✗ No project directory found: $active_project${NC}" >&2
+                echo -e "${YELLOW}Expected path: documents/$active_project${NC}" >&2
+                echo -e "${YELLOW}Tip: Check if .active_project points to a valid project${NC}" >&2
                 exit 1
             fi
             ;;
