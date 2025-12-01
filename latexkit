@@ -525,6 +525,29 @@ $description
 
 <!-- Add project notes here -->
 EOF
+
+    # Create project-level config file
+    cat > "$project_dir/latexkit.config.json" <<EOF
+{
+  "project": {
+    "name": "$description",
+    "layout": "$layout",
+    "language": "indonesian"
+  },
+  "components": [],
+  "style": {
+    "font": "Times New Roman",
+    "fontSize": "12pt",
+    "lineSpacing": 1.5,
+    "margin": "1in"
+  },
+  "paths": {
+    "source": "latex_source",
+    "output": "build",
+    "bibliography": "zotero_export"
+  }
+}
+EOF
     
     # Set as active project
     echo "$project_id" > "$SCRIPT_DIR/.active_project"

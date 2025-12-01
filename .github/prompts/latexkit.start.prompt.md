@@ -31,7 +31,7 @@ The text the user typed after `/latexkit.start` is the assignment brief or descr
      - `ACTIVE_PROJECT` - current active project ID (from .active_project file)
      - `DOCUMENT_DIR` - full path to project directory
    - **If ACTIVE_PROJECT is set and DOCUMENT_DIR exists**: Switch to "edit mode" (steps 0a-0c)
-   - **If no active project or new project requested**: Proceed with creating new document (steps 1-10)
+   - **If no active project**: Report error and instruct user to create project via CLI (Step 1)
 
 0a. **Edit mode: Detect existing project**:
    - Set `CURRENT_PROJECT` to active project name (format: `NNN-project-name`)
@@ -51,36 +51,17 @@ The text the user typed after `/latexkit.start` is the assignment brief or descr
    - Suggest next steps based on current progress
    - Exit (do not proceed to creation steps)
 
-1. **Check for user-specified project name** (HIGHEST PRIORITY):
-   - **FIRST**, search the user input for explicit project name specifications
-   - Look for patterns like:
-     - `project name: "name-here"`
-     - `project-name: "name-here"`
-     - `short-name: "name-here"`
-     - `nama proyek: "name-here"` (Indonesian)
-   - If found, extract the user's exact specification and use it as SHORT_NAME
-   - **CRITICAL**: If user provides a project name, you MUST use it exactly as specified
-   - This takes precedence over auto-generation
-   - Skip to step 2 with the user's SHORT_NAME
+1. **Handle "No Active Project" Case**:
+   - If `ACTIVE_PROJECT` is empty or the directory doesn't exist:
+     - **STOP IMMEDIATELY**. Do not attempt to create folders or files.
+     - Inform the user: "No active project found. Please create a new project in the terminal first:"
+     - Provide the command: \`./latexkit new "Project Name" --short-name "short-name"\`
+     - Explain: "Once created, run \`/latexkit.start\` again to populate the project metadata."
+     - **EXIT**.
 
-1a. **Generate a concise short name** (2-4 words) for the branch (ONLY if user didn't specify):
-   - **ONLY execute this step if no project name was found in step 1**
-   - Analyze the document description and extract the most meaningful keywords
-   - Create a 2-4 word short name that captures the essence of the document
-   - Use action-noun format when possible (e.g., "climate-essay", "ethics-proposal")
-   - Preserve technical terms and acronyms when relevant
-   - Keep it concise but descriptive enough to understand the document at a glance
-   - Examples:
-     - "Write essay on climate change impacts" → "climate-essay"
-     - "Research proposal for AI ethics" → "ai-ethics-proposal"
-     - "Lab report on chemistry experiment" → "chemistry-lab-report"
-
-2. **Run setup script**: Execute `.latexkit/scripts/bash/create-new-document.sh --json "$ARGUMENTS" --short-name "your-generated-or-user-specified-short-name"` from repo root and parse JSON output for BRANCH_NAME, DOCUMENT_DIR, START_FILE, DOC_NUM, DOC_TYPE. For single quotes in args like "I'm Groot", use escape syntax: `'I'\''m Groot'` (or double-quote: `"I'm Groot"`).
-   
-   **IMPORTANT**:
-   - Append the --short-name argument with the short name from step 1 (user-specified) or step 1a (auto-generated)
-   - You must only ever run this script once
-   - The JSON is provided in the terminal as output - always refer to it to get the actual content
+2. **Verify Project State**:
+   - Confirm we are in `documents/$ACTIVE_PROJECT/`
+   - If `start.md` already has content (not just the template), ask if user wants to overwrite or update.
 
 3. **Load templates**: Read `.latexkit/templates/start-template.md` to understand required sections for the project start file.
 
@@ -221,8 +202,7 @@ The text the user typed after `/latexkit.start` is the assignment brief or descr
 
 ## Key Rules
 
-- **HIGHEST PRIORITY**: Always check for user-specified project names FIRST before generating
-- **RESPECT USER INPUT**: If user provides a project name (via `project name: "xxx"`), use it EXACTLY
+- **CLI FIRST**: Project creation MUST be done via `./latexkit new` in the terminal. The prompt only populates metadata.
 - **MAIN-ONLY WORKFLOW**: All projects live in `documents/` on main branch - no branch switching needed
 - Use absolute paths for all files
 - Never overwrite existing assignments
@@ -239,9 +219,8 @@ The text the user typed after `/latexkit.start` is the assignment brief or descr
 
 Document is ready for next phase when:
 - ✅ **New document mode**:
-  - Project folder created with naming convention: `NNN-short-name` (three-digit prefix + descriptive name)
-  - Document directory structure is created at `documents/NNN-short-name/`
-  - `.active_project` file updated to point to new project (Main-Only Workflow)
+  - Project folder exists: `documents/NNN-short-name/`
+  - `.active_project` points to this folder
   - **NO git branch created** - all work stays on `main` branch
   - Complete directory structure exists:
     - `checklists/`, `latex_source/`, `build/`

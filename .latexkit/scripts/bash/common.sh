@@ -91,9 +91,14 @@ get_active_project() {
     if [[ -f "$active_project_file" ]]; then
         local project_id=$(cat "$active_project_file" | tr -d '[:space:]')
         # Validate the project exists
-        if [[ -n "$project_id" && -d "$docs_dir/$project_id" ]]; then
-            echo "$project_id"
-            return
+        if [[ -n "$project_id" ]]; then
+            if [[ -d "$docs_dir/$project_id" ]]; then
+                echo "$project_id"
+                return
+            else
+                # Stale active project file - clear it
+                rm -f "$active_project_file"
+            fi
         fi
     fi
     
