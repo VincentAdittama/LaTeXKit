@@ -21,7 +21,7 @@ if [[ -n "${LATEXKIT_SUPER_REPO_ROOT:-}" ]]; then
 
 # Cek 2: Apakah saya berada di dalam Git Superproject? (Native Git check)
 # Perintah ini akan return path ke Repo B jika script ini ada di dalam submodule
-elif SUPER_ROOT=$(git rev-parse --show-superproject-working-tree 2>/dev/null) && [[ -n "$SUPER_ROOT" ]]; then
+elif SUPER_ROOT=$(git -C "$SCRIPT_DIR" rev-parse --show-superproject-working-tree 2>/dev/null) && [[ -n "$SUPER_ROOT" ]]; then
     PROJECT_ROOT="$SUPER_ROOT"
     MODE="Submodule (Native)"
 
