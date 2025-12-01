@@ -10,7 +10,7 @@ set -e
 
 VERSION="1.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REGISTRY_DIR="$SCRIPT_DIR/registry"
+REGISTRY_DIR="$SCRIPT_DIR/.latexkit/registry"
 CONFIG_FILE="latexkit.config.json"
 
 # Source common utilities
@@ -147,7 +147,7 @@ cmd_start() {
     # latex_source is created at root/latex_source.
     # So path to registry is ../registry
     
-    echo "\newcommand{\latexKitPath}{../registry/layouts/$layout}" >> latex_source/main.tex
+    echo "\newcommand{\latexKitPath}{../.latexkit/registry/layouts/$layout}" >> latex_source/main.tex
     echo "" >> latex_source/main.tex
     
     # Append the rest of the original main.tex, but replace \input{preamble.tex} with \input{\latexKitPath/preamble.tex}
@@ -266,6 +266,17 @@ cmd_list() {
 # Command: build
 cmd_build() {
     if [[ ! -d "latex_source" ]]; then
+        # Try to find active project
+        local active=$(cat "$SCRIPT_DIR/.active_project" 2>/dev/null || echo "")
+        if [[ -n "$active" ]]; then
+            local project_dir="$SCRIPT_DIR/documents/$active"
+            if [[ -d "$project_dir/latex_source" ]]; then
+                print_info "Building active project: $active"
+                (cd "$project_dir" && cmd_build)
+                return $?
+            fi
+        fi
+
         print_error "Project not started! Run './latexkit start' first"
         exit 1
     fi
@@ -333,6 +344,19 @@ cmd_build() {
 
 # Command: clean
 cmd_clean() {
+    if [[ ! -d "build" ]] && [[ ! -d "latex_source" ]]; then
+        # Try to find active project
+        local active=$(cat "$SCRIPT_DIR/.active_project" 2>/dev/null || echo "")
+        if [[ -n "$active" ]]; then
+            local project_dir="$SCRIPT_DIR/documents/$active"
+            if [[ -d "$project_dir" ]]; then
+                print_info "Cleaning active project: $active"
+                (cd "$project_dir" && cmd_clean)
+                return $?
+            fi
+        fi
+    fi
+
     print_info "Cleaning build artifacts..."
     rm -rf build/
     print_success "Build directory cleaned"
@@ -460,7 +484,7 @@ cmd_new() {
 %!TeX root = main.tex
 %% LATEXKIT CONFIGURATION
 %% This path points to the shared template registry.
-\\newcommand{\\latexKitPath}{../../registry/layouts/$layout}
+\\newcommand{\\latexKitPath}{../../../.latexkit/registry/layouts/$layout}
 
 $(cat "$REGISTRY_DIR/layouts/$layout/main.tex")
 EOF
