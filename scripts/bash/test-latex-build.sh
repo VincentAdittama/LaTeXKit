@@ -23,10 +23,10 @@ Quick test compilation to verify LaTeX correctness.
 Ensures output goes to build/ directory (not latex_source/).
 
 Arguments:
-    DOCUMENT_DIR    Path to document directory (optional, auto-detects from branch)
+    DOCUMENT_DIR    Path to document directory (optional, auto-detects from active project)
 
 Examples:
-    $0                                    # Auto-detect from current branch
+    $0                                    # Auto-detect from active project
     $0 documents/001-my-project           # Explicit document path
 
 Output:
