@@ -138,7 +138,7 @@ get_workflow_stage() {
     fi
     
     # Template/system changes
-    if echo "$all_files" | grep -q "\.latexkit/"; then
+    if echo "$all_files" | grep -q "\.latexkit/\|scripts/\|registry/\|config/"; then
         echo "REFACTOR"
         return 0
     fi

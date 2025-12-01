@@ -1,0 +1,62 @@
+%!TeX root = main.tex
+%% LATEXKIT CONFIGURATION
+%% This path points to the shared template registry.
+\newcommand{\latexKitPath}{../../../.latexkit/registry/layouts/academic-assignment}
+
+%% --------------------------------------------------------------------
+%% Academic Assignment Layout - Main Document
+%% A clean, academic layout for university assignments with bibliography support
+%% --------------------------------------------------------------------
+\documentclass[12pt, a4paper]{article}
+
+%% Document Variables
+\newcommand{\docTitle}{Judul Tugas}
+\newcommand{\docCourse}{Nama Mata Kuliah}
+\newcommand{\docAuthor}{Nama Mahasiswa}
+\newcommand{\docNIM}{NIM}
+\newcommand{\docProfessor}{Nama Dosen}
+\newcommand{\docDate}{\today}
+
+%% Authorship Information (can be customized for group/individual)
+\newcommand{\docAuthorship}{%
+    \begin{tabular}{ll}
+        Nama & : \docAuthor \\
+        NIM  & : \docNIM
+    \end{tabular}%
+}
+
+%% Load Preamble
+\input{\latexKitPath/preamble.tex}
+
+\begin{document}
+
+%% Title Page
+\begin{titlepage}
+    \centering
+    \setstretch{1.5}
+    \vspace*{2cm}
+    {\Huge\bfseries \docTitle\par}
+    \vspace{1.5cm}
+    {\Large Mata Kuliah: \textit{\docCourse}\par}
+    \vspace{2.5cm}
+    {\Large\docAuthorship\par}
+    \vfill
+    {\Large Dosen: \docProfessor\par}
+    \vspace{0.25cm}
+    {\Large \docDate\par}
+\end{titlepage}
+\newpage
+
+%% Start page numbering and headers
+\pagestyle{fancy}
+
+%% Main Content Sections
+\input{sections/01_introduction.tex}
+\input{sections/02_body.tex}
+\input{sections/03_conclusion.tex}
+
+%% Bibliography
+\newpage
+\printbibliography[title={Daftar Pustaka}]
+
+\end{document}

@@ -90,7 +90,7 @@ get_repo_root() {
 get_active_project() {
     local repo_root=$(get_repo_root)
     local docs_dir="$repo_root/documents"
-    local active_project_file="$repo_root/.latexkit/.active_project"
+    local active_project_file="$repo_root/.active_project"
     
     # 1. Check environment variable (highest priority)
     if [[ -n "${LATEXKIT_DOCUMENT:-}" ]]; then
@@ -165,7 +165,7 @@ get_active_project() {
 set_active_project() {
     local project_id="$1"
     local repo_root=$(get_repo_root)
-    local active_project_file="$repo_root/.latexkit/.active_project"
+    local active_project_file="$repo_root/.active_project"
     local docs_dir="$repo_root/documents"
     
     if [[ -z "$project_id" ]]; then
@@ -574,7 +574,15 @@ export -f find_document_dir_by_id find_document_dir_by_prefix get_document_paths
 # Load naming configuration from config file or environment
 load_naming_config() {
     local repo_root=$(get_repo_root)
-    local config_file="${repo_root}/.latexkit/config/naming.conf"
+    local config_file=""
+
+    # Check for config in Submodule location (Repo B/.latexkit/config)
+    if [[ -f "${repo_root}/.latexkit/config/naming.conf" ]]; then
+        config_file="${repo_root}/.latexkit/config/naming.conf"
+    # Check for config in Standalone location (Repo A/config)
+    elif [[ -f "${repo_root}/config/naming.conf" ]]; then
+        config_file="${repo_root}/config/naming.conf"
+    fi
     
     # Defaults - can be overridden by config file or environment
     export LATEXKIT_MAX_WORDS="${LATEXKIT_MAX_WORDS:-4}"
@@ -584,7 +592,7 @@ load_naming_config() {
     export LATEXKIT_STOP_WORDS_REGEX="${LATEXKIT_STOP_WORDS_REGEX:-^(i|a|an|the|to|for|of|in|on|at|by|with|from|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|should|could|can|may|might|must|shall|this|that|these|those|my|your|our|their|want|need|add|get|set|write|create|make|draft|document|paper|report)$}"
     
     # Load from config file if exists
-    if [[ -f "$config_file" ]]; then
+    if [[ -n "$config_file" && -f "$config_file" ]]; then
         source "$config_file"
     fi
 }
@@ -743,7 +751,12 @@ generate_document_id() {
 # The hook should print a single line slug (it will be sanitized).
 ai_name_hook() {
     local text="$1"
+    # Try submodule path first, then standalone path
     local hook_path="$(get_repo_root)/.latexkit/scripts/bash/name-from-ai.sh"
+    if [[ ! -x "$hook_path" ]]; then
+        hook_path="$(get_repo_root)/scripts/bash/name-from-ai.sh"
+    fi
+    
     if [[ -x "$hook_path" ]]; then
         local ai_suggestion
         ai_suggestion=$("$hook_path" "$text" 2>/dev/null || true)

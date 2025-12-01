@@ -34,13 +34,13 @@ fi
 
 # Export agar bisa dibaca oleh child scripts (common.sh dll)
 export LATEXKIT_PROJECT_ROOT="$PROJECT_ROOT"
-REGISTRY_DIR="$SCRIPT_DIR/.latexkit/registry"
+REGISTRY_DIR="$SCRIPT_DIR/registry"
 CONFIG_FILE="latexkit.config.json"
 
 
 
 # Source common utilities
-source "$SCRIPT_DIR/.latexkit/scripts/bash/common.sh" 2>/dev/null || true
+source "$SCRIPT_DIR/scripts/bash/common.sh" 2>/dev/null || true
 
 # Colors for output
 RED='\033[0;31m'
@@ -293,7 +293,7 @@ cmd_list() {
 cmd_build() {
     if [[ ! -d "latex_source" ]]; then
         # Try to find active project
-        local active=$(cat "$PROJECT_ROOT/.latexkit/.active_project" 2>/dev/null || echo "")
+        local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
         if [[ -n "$active" ]]; then
             local project_dir="$PROJECT_ROOT/documents/$active"
             if [[ -d "$project_dir/latex_source" ]]; then
@@ -372,7 +372,7 @@ cmd_build() {
 cmd_clean() {
     if [[ ! -d "build" ]] && [[ ! -d "latex_source" ]]; then
         # Try to find active project
-        local active=$(cat "$PROJECT_ROOT/.latexkit/.active_project" 2>/dev/null || echo "")
+        local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
         if [[ -n "$active" ]]; then
             local project_dir="$PROJECT_ROOT/documents/$active"
             if [[ -d "$project_dir" ]]; then
@@ -390,7 +390,7 @@ cmd_clean() {
 
 # Command: commit (smart git commit with workflow labels)
 cmd_commit() {
-    local commit_script="$SCRIPT_DIR/.latexkit/scripts/bash/smart-commit.sh"
+    local commit_script="$SCRIPT_DIR/scripts/bash/smart-commit.sh"
     
     if [[ ! -x "$commit_script" ]]; then
         print_error "Smart commit script not found or not executable!"
@@ -456,7 +456,7 @@ cmd_new() {
     fi
     
     # Semester Logic
-    local last_semester_file="$PROJECT_ROOT/.latexkit/.last_semester"
+    local last_semester_file="$PROJECT_ROOT/.last_semester"
     mkdir -p "$(dirname "$last_semester_file")"
     
     if [[ -z "$semester" ]]; then
@@ -622,7 +622,7 @@ EOF
 EOF
     
     # Set as active project
-    echo "$project_id" > "$PROJECT_ROOT/.latexkit/.active_project"
+    echo "$project_id" > "$PROJECT_ROOT/.active_project"
     
     print_success "Project created: $project_dir"
     echo ""
@@ -650,7 +650,7 @@ cmd_switch() {
             list_projects
         else
             # Fallback listing
-            local active=$(cat "$PROJECT_ROOT/.latexkit/.active_project" 2>/dev/null || echo "")
+            local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
             for dir in "$PROJECT_ROOT/documents"/*; do
                 if [[ -d "$dir" ]]; then
                     local dirname=$(basename "$dir")
@@ -706,7 +706,7 @@ cmd_switch() {
     local real_project_id=$(basename "$project_dir")
     
     # Set active project
-    echo "$real_project_id" > "$PROJECT_ROOT/.latexkit/.active_project"
+    echo "$real_project_id" > "$PROJECT_ROOT/.active_project"
     print_success "Switched to project: $real_project_id"
     
     # Show project info
@@ -738,7 +738,7 @@ cmd_projects() {
         list_projects
     else
         # Fallback if common.sh not sourced or function missing
-        local active=$(cat "$PROJECT_ROOT/.latexkit/.active_project" 2>/dev/null || echo "")
+        local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
         for dir in "$PROJECT_ROOT/documents"/*; do
             if [[ -d "$dir" ]]; then
                 local dirname=$(basename "$dir")
@@ -761,7 +761,7 @@ cmd_projects() {
 
 # Command: current (show current active project)
 cmd_current() {
-    local active=$(cat "$PROJECT_ROOT/.latexkit/.active_project" 2>/dev/null || echo "")
+    local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
     
     if [[ -z "$active" ]]; then
         print_warning "No active project"
