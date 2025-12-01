@@ -1,0 +1,71 @@
+%% ============================================
+%% COMPONENT: Blockquote and Quote Styles
+%% ============================================
+%% Usage: Include this file in your preamble
+%% \input{components/quote.tex}
+%% ============================================
+
+\usepackage{framed}
+\usepackage{xcolor}
+
+%% Define quote colors
+\definecolor{quotebarcolor}{RGB}{200, 200, 200}
+\definecolor{quotebgcolor}{RGB}{245, 245, 245}
+
+%% Custom quote environment with left border
+\newenvironment{leftbarquote}{%
+  \def\FrameCommand{%
+    {\color{quotebarcolor}\vrule width 3pt}%
+    \hspace{10pt}%
+  }%
+  \MakeFramed{\advance\hsize-\width\FrameRestore}%
+  \itshape\small
+}{%
+  \endMakeFramed
+}
+
+%% Blockquote with background
+\newenvironment{bgquote}{%
+  \begin{center}
+  \begin{minipage}{0.9\textwidth}
+  \colorbox{quotebgcolor}{%
+    \begin{minipage}{\dimexpr\textwidth-2\fboxsep}
+    \vspace{8pt}
+    \itshape\small
+}{%
+    \vspace{8pt}
+    \end{minipage}
+  }
+  \end{minipage}
+  \end{center}
+}
+
+%% Simple indented quote
+\renewenvironment{quote}{%
+  \list{}{%
+    \leftmargin=2em
+    \rightmargin=2em
+    \itshape\small
+  }%
+  \item\relax
+}{%
+  \endlist
+}
+
+%% Command: Inline quote with attribution
+%% Usage: \quotewith{quote text}{author}
+\newcommand{\quotewith}[2]{%
+  \begin{leftbarquote}
+    ``#1''
+    \begin{flushright}
+      \normalfont\textsc{--- #2}
+    \end{flushright}
+  \end{leftbarquote}
+}
+
+%% Example usage (commented out):
+% \begin{leftbarquote}
+%   This is a quote with a left border.
+% \end{leftbarquote}
+%
+% \quotewith{Knowledge is power}{Francis Bacon}

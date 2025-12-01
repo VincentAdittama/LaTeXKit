@@ -1,0 +1,44 @@
+%% ============================================
+%% COMPONENT: Custom Heading Styles
+%% ============================================
+%% Usage: Include this file in your preamble
+%% \input{components/heading.tex}
+%% ============================================
+
+\usepackage{titlesec}
+
+%% Custom Section Styling
+\titleformat{\section}
+  {\large\bfseries\color{black}}  % Format
+  {\thesection}                    % Label
+  {1em}                            % Sep
+  {}                               % Before code
+
+%% Custom Subsection Styling
+\titleformat{\subsection}
+  {\normalsize\bfseries\color{black!80}}
+  {\thesubsection}
+  {1em}
+  {}
+
+%% Custom Subsubsection Styling
+\titleformat{\subsubsection}
+  {\normalsize\itshape\color{black!70}}
+  {\thesubsubsection}
+  {1em}
+  {}
+
+%% Spacing adjustments
+\titlespacing*{\section}{0pt}{12pt plus 4pt minus 2pt}{6pt plus 2pt minus 2pt}
+\titlespacing*{\subsection}{0pt}{10pt plus 3pt minus 2pt}{4pt plus 2pt minus 2pt}
+\titlespacing*{\subsubsection}{0pt}{8pt plus 2pt minus 2pt}{3pt plus 2pt minus 2pt}
+
+%% Custom title command for emphasis
+\newcommand{\emphTitle}[1]{%
+  {\LARGE\bfseries\color{black} #1}%
+}
+
+%% Custom subtitle command
+\newcommand{\subtitle}[1]{%
+  {\large\itshape\color{black!70} #1}%
+}

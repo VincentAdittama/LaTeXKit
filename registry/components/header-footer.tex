@@ -1,0 +1,67 @@
+%% ============================================
+%% COMPONENT: Custom Headers and Footers
+%% ============================================
+%% Usage: Include this file in your preamble
+%% \input{components/header-footer.tex}
+%% ============================================
+
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+
+%% Ensure proper head height
+\setlength{\headheight}{15pt}
+
+%% Style 1: Academic (course and author in header)
+\fancypagestyle{academic}{%
+  \fancyhf{}
+  \fancyhead[L]{\docCourse}
+  \fancyhead[R]{\docAuthor{} - \thepage}
+  \renewcommand{\headrulewidth}{0.4pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+%% Style 2: Formal (title in header, page in footer)
+\fancypagestyle{formal}{%
+  \fancyhf{}
+  \fancyhead[C]{\docTitle}
+  \fancyfoot[C]{Halaman \thepage\ dari \pageref{LastPage}}
+  \renewcommand{\headrulewidth}{0.4pt}
+  \renewcommand{\footrulewidth}{0.4pt}
+}
+
+%% Style 3: Minimal (page number only)
+\fancypagestyle{minimal}{%
+  \fancyhf{}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+%% Style 4: Chapter style (section in header)
+\fancypagestyle{chapter}{%
+  \fancyhf{}
+  \fancyhead[LE,RO]{\thepage}
+  \fancyhead[LO]{\nouppercase{\rightmark}}
+  \fancyhead[RE]{\nouppercase{\leftmark}}
+  \renewcommand{\headrulewidth}{0.4pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+%% Style 5: Official (for letters)
+\fancypagestyle{official}{%
+  \fancyhf{}
+  \fancyfoot[L]{\small\docInstitution}
+  \fancyfoot[R]{\small\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0.4pt}
+}
+
+%% Default to academic style
+\pagestyle{academic}
+
+%% Example usage (commented out):
+%% Put this after \begin{document} and after title page:
+% \pagestyle{formal}
+%
+%% Or use different styles for different sections:
+% \pagestyle{minimal}

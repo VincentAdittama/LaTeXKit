@@ -1,0 +1,20 @@
+# Operating System & Editor Files
+.DS_Store
+*.swp
+*.swo
+
+# LaTeX build output directory
+latex_source/out
+
+# Ignore all files in build directories, but keep .gitkeep files
+**/build/*
+!**/build/.gitkeep
+
+# Ignore Zotero-exported attachment files by default, but track the .bib file
+# This prevents committing potentially large PDF files to the repository.
+zotero_export/files/
+
+# IMPORTANT: Always track .gitkeep files to preserve empty directory structure
+# These files prevent folders from being deleted by git or `find . -type d -empty -delete`
+!.gitkeep
+**out/

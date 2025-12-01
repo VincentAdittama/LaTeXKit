@@ -1,0 +1,65 @@
+%% ============================================
+%% COMPONENT: Code Blocks and Syntax
+%% ============================================
+%% Usage: Include this file in your preamble
+%% \input{components/code.tex}
+%% ============================================
+
+\usepackage{listings}
+\usepackage{xcolor}
+
+%% Define colors for syntax highlighting
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{codeblue}{rgb}{0.13,0.29,0.53}
+\definecolor{codebg}{rgb}{0.95,0.95,0.95}
+
+%% Configure listings style
+\lstdefinestyle{default}{
+    backgroundcolor=\color{codebg},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{codeblue}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=8pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{codegray}
+}
+
+\lstset{style=default}
+
+%% Inline code command
+\newcommand{\inlinecode}[1]{%
+  \colorbox{codebg}{\texttt{\small #1}}%
+}
+
+%% Command: Code block with language
+%% Usage: In document, use \begin{lstlisting}[language=Python]
+%% Or use the custom environment below
+
+%% Custom code environment
+\lstnewenvironment{code}[1][]{%
+  \lstset{
+    style=default,
+    #1
+  }
+}{}
+
+%% Example usage (commented out):
+% \inlinecode{print("Hello, World!")}
+%
+% \begin{code}[language=Python, caption=Example Python Code]
+% def hello_world():
+%     print("Hello, World!")
+% \end{code}

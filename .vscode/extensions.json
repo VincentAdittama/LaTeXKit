@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "GitHub.copilot",
+    "GitHub.copilot-chat",
+    "james-yu.latex-workshop",
+    "yzhang.markdown-all-in-one"
+  ],
+  "unwantedRecommendations": []
+}

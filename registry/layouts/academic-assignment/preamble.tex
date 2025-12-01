@@ -1,0 +1,76 @@
+%% --------------------------------------------------------------------
+%% Academic Assignment Layout - Preamble
+%% Includes APA 7th Edition bibliography support
+%% --------------------------------------------------------------------
+
+%% Page Layout
+\usepackage[a4paper, margin=1in]{geometry}
+
+%% Core Packages
+\usepackage{fontspec}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{microtype}
+\usepackage[none]{hyphenat}
+
+%% Language & Bibliography
+\usepackage[indonesian,english]{babel}
+\usepackage{csquotes}
+
+%% Hyperlinks (must be loaded before biblatex for full citation hyperlinks)
+\usepackage{hyperref}
+
+%% Bibliography (biblatex must be loaded after hyperref)
+\usepackage[backend=biber, style=apa, sortcites=true, sorting=nyt]{biblatex}
+\DeclareLanguageMapping{indonesian}{american-apa}
+% Bibliography Configuration:
+% The path to your .bib file depends on your Zotero export structure.
+% Uncomment and update the line below with your actual bibliography file path:
+% \addbibresource{../zotero_export/<your-export-folder>/<your-bib-file>.bib}
+%
+% Example paths:
+% \addbibresource{../zotero_export/My Library/My Collection.bib}
+% \addbibresource{../zotero_export/references.bib}
+
+\DefineBibliographyStrings{indonesian}{
+  andothers = {et al\adddot},
+  and = {\&},
+  retrieved = {Diakses dari},
+  from = {dari}
+}
+
+%% Make \cite produce parentheses for APA inline citations
+\let\cite\parencite
+
+%% Font Configuration
+\setmainfont{Times New Roman}[Ligatures=TeX]
+
+%% Typography
+\tolerance=1000
+\emergencystretch=3em
+\frenchspacing
+
+%% Headers & Footers
+\setlength{\headheight}{15pt}
+\pagestyle{empty}
+\fancyhf{}
+\fancyhead[L]{\docCourse}
+\fancyhead[R]{\docAuthor{} - \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+%% Hyperlinks Configuration
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=black,
+  pdftitle={\docTitle},
+  pdfauthor={\docAuthor},
+  hypertexnames=false
+}
+
+%% Section Formatting
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}

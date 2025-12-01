@@ -1,0 +1,692 @@
+#!/usr/bin/env bash
+# LaTeXKit CLI - Component-based LaTeX template manager
+# Inspired by shadcn/ui
+
+set -e
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REGISTRY_DIR="$SCRIPT_DIR/registry"
+CONFIG_FILE="latexkit.config.json"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Helper functions
+print_header() {
+    local title="LaTeXKit v${VERSION}"
+    local subtitle="Component-based LaTeX Templates"
+    
+    # Calculate the width needed (use the longer line)
+    local title_len=${#title}
+    local subtitle_len=${#subtitle}
+    local content_width=$((title_len > subtitle_len ? title_len : subtitle_len))
+    
+    # Add padding (4 spaces on each side)
+    local total_width=$((content_width + 8))
+    
+    # Generate horizontal borders dynamically
+    local horizontal_border=$(printf '═%.0s' $(seq 1 $total_width))
+    
+    # Calculate padding for centering
+    local title_padding=$(( (total_width - title_len) / 2 ))
+    local subtitle_padding=$(( (total_width - subtitle_len) / 2 ))
+    
+    echo -e "${MAGENTA}"
+    echo "╔${horizontal_border}╗"
+    printf "║%*s%s%*s║\n" $title_padding "" "$title" $((total_width - title_len - title_padding)) ""
+    printf "║%*s%s%*s║\n" $subtitle_padding "" "$subtitle" $((total_width - subtitle_len - subtitle_padding)) ""
+    echo "╚${horizontal_border}╝"
+    echo -e "${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}✗${NC} $1"
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+
+# Command: start (formerly init)
+cmd_start() {
+    print_header
+    
+    local layout="academic-assignment"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --layout)
+                layout="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Check if layout exists
+    if [[ ! -d "$REGISTRY_DIR/layouts/$layout" ]]; then
+        print_error "Layout '$layout' not found!"
+        echo ""
+        echo "Available layouts:"
+        ls -1 "$REGISTRY_DIR/layouts/" | sed 's/^/  - /'
+        exit 1
+    fi
+    
+    # Check if already started
+    if [[ -d "latex_source" ]]; then
+        print_warning "Project already started!"
+        read -p "Do you want to restart? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 0
+        fi
+        rm -rf latex_source
+    fi
+    
+    echo -e "${CYAN}Starting LaTeXKit project with layout: ${layout}${NC}"
+    echo ""
+    
+    # Create project structure
+    mkdir -p latex_source/{sections,images}
+    
+    # 1. Copy ONLY the content structure (sections), NOT the core template files
+    print_info "Setting up project structure..."
+    cp -r "$REGISTRY_DIR/layouts/$layout/sections" latex_source/
+    
+    # 2. Create a special main.tex that references the registry
+    # We calculate the relative path from latex_source/ to the registry
+    # Assuming standard structure: <repo>/documents/<branch>/latex_source
+    # And registry is at: <repo>/registry
+    # So we need to go up: ../../../registry
+    
+    # However, for the "Private Wrapper" strategy, the path might be different.
+    # We will use a placeholder that defaults to the local registry for now,
+    # but can be easily changed or symlinked.
+    
+    print_info "Creating main.tex with template references..."
+    
+    # Read the original main.tex
+    local original_main="$REGISTRY_DIR/layouts/$layout/main.tex"
+    
+    # Create the new main.tex
+    # We inject the \newcommand{\latexKitPath} at the top
+    echo "%!TeX root = main.tex" > latex_source/main.tex
+    echo "%% LATEXKIT CONFIGURATION" >> latex_source/main.tex
+    echo "%% This path points to the shared template registry." >> latex_source/main.tex
+    echo "%% In a Private Wrapper setup, this should point to your submodule." >> latex_source/main.tex
+    
+    # Default path: assumes we are in the same repo (monorepo style for now)
+    # ../../../registry -> from latex_source -> document_dir -> documents -> root -> registry
+    # Wait, the user is currently in the root of the template repo.
+    # If they run ./latexkit start, they are at root.
+    # latex_source is created at root/latex_source.
+    # So path to registry is ../registry
+    
+    echo "\newcommand{\latexKitPath}{../registry/layouts/$layout}" >> latex_source/main.tex
+    echo "" >> latex_source/main.tex
+    
+    # Append the rest of the original main.tex, but replace \input{preamble.tex} with \input{\latexKitPath/preamble.tex}
+    # and remove the \documentclass line if we want to prepend it? No, keep it standard.
+    
+    # Actually, let's just copy the file and use sed to patch it.
+    cat "$original_main" >> latex_source/main.tex
+    
+    # Patch the inputs to use \latexKitPath
+    # We need to be careful not to break local inputs like sections/
+    
+    # 1. Fix preamble input
+    sed -i '' 's|\\input{preamble.tex}|\\input{\\latexKitPath/preamble.tex}|g' latex_source/main.tex
+    
+    # 2. Fix component inputs if any are pre-included (usually not in main.tex but good to be safe)
+    # sed -i '' 's|\\input{components/|\\input{\\latexKitPath/../../components/|g' latex_source/main.tex
+    
+    # Create config file
+    print_info "Creating configuration file..."
+    cat > "$CONFIG_FILE" <<EOF
+{
+  "project": {
+    "name": "My LaTeX Project",
+    "layout": "$layout",
+    "language": "indonesian"
+  },
+  "components": [],
+  "style": {
+    "font": "Times New Roman",
+    "fontSize": "12pt",
+    "lineSpacing": 1.5,
+    "margin": "1in"
+  },
+    "paths": {
+        "source": "latex_source",
+        "output": "build",
+        "bibliography": "zotero_export/<your-export>.bib"
+    }
+}
+EOF
+    
+    print_success "Project started successfully (Reference Mode)!"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Edit latex_source/sections/*.tex with your content"
+    echo "  2. Add components: ./latexkit add <component>"
+    echo "  3. Build your document: ./latexkit build"
+}
+
+# Command: add
+cmd_add() {
+    local component="$1"
+    
+    if [[ -z "$component" ]]; then
+        print_error "Please specify a component to add"
+        echo "Usage: ./latexkit add <component>"
+        echo ""
+        echo "Available components:"
+        ls -1 "$REGISTRY_DIR/components/" | sed 's/\.tex$//' | sed 's/^/  - /'
+        exit 1
+    fi
+    
+    # Check if project is started
+    if [[ ! -d "latex_source" ]]; then
+        print_error "Project not started! Run './latexkit start' first"
+        exit 1
+    fi
+    
+    # Check if component exists
+    if [[ ! -f "$REGISTRY_DIR/components/${component}.tex" ]]; then
+        print_error "Component '$component' not found!"
+        echo ""
+        echo "Available components:"
+        ls -1 "$REGISTRY_DIR/components/" | sed 's/\.tex$//' | sed 's/^/  - /'
+        exit 1
+    fi
+    
+    # Update config
+    if command -v jq &> /dev/null; then
+        local temp_config=$(mktemp)
+        jq ".components += [\"$component\"] | .components |= unique" "$CONFIG_FILE" > "$temp_config"
+        mv "$temp_config" "$CONFIG_FILE"
+    fi
+    
+    print_success "Component '$component' registered!"
+    echo ""
+    print_info "To use this component, add this line to your preamble (or main.tex):"
+    echo ""
+    echo "  \\input{\\latexKitPath/../../components/${component}.tex}"
+    echo ""
+    print_info "Note: We reference the shared component directly so updates apply automatically."
+}
+
+# Command: list
+cmd_list() {
+    print_header
+    
+    echo -e "${CYAN}📦 Available Layouts:${NC}"
+    ls -1 "$REGISTRY_DIR/layouts/" | sed 's/^/  - /'
+    echo ""
+    
+    echo -e "${CYAN}🧩 Available Components:${NC}"
+    ls -1 "$REGISTRY_DIR/components/" | sed 's/\.tex$//' | sed 's/^/  - /'
+    echo ""
+    
+    if [[ -f "$CONFIG_FILE" ]]; then
+        echo -e "${CYAN}✓ Installed Components:${NC}"
+        if command -v jq &> /dev/null; then
+            jq -r '.components[]' "$CONFIG_FILE" | sed 's/^/  - /'
+        else
+            echo "  (Install jq to see installed components)"
+        fi
+    fi
+}
+
+# Command: build
+cmd_build() {
+    if [[ ! -d "latex_source" ]]; then
+        print_error "Project not started! Run './latexkit start' first"
+        exit 1
+    fi
+    
+    print_info "Building LaTeX document..."
+    
+    mkdir -p build
+    cd latex_source
+    
+    # Compile with lualatex (for fontspec support) using explicit output directory
+    print_info "Pass 1: Initial compilation..."
+    lualatex -output-directory=../build main.tex || {
+        print_error "LaTeX compilation failed! Check ../build/main.log for details"
+        cd ..
+        exit 1
+    }
+    
+    # Run biber for bibliography if any .bib file exists under zotero_export
+    local bibfile
+    bibfile=$(find ../zotero_export -type f -name '*.bib' 2>/dev/null | head -n 1 || true)
+    if [[ -n "$bibfile" ]]; then
+        print_info "Pass 2: Processing bibliography..."
+        cd ../build
+        biber main || print_warning "Biber encountered issues (check main.blg)"
+        cd ../latex_source
+        
+        print_info "Pass 3: Resolving citations..."
+        lualatex -output-directory=../build main.tex || {
+            print_error "LaTeX compilation failed on pass 3!"
+            cd ..
+            exit 1
+        }
+        
+        print_info "Pass 4: Final compilation..."
+        lualatex -output-directory=../build main.tex || {
+            print_error "LaTeX compilation failed on pass 4!"
+            cd ..
+            exit 1
+        }
+    fi
+    
+    cd ..
+    
+    # Verify PDF is in correct location
+    if [[ -f "build/main.pdf" ]]; then
+        print_success "Document compiled successfully!"
+        echo ""
+        print_info "Output: build/main.pdf"
+        
+        # Warn if PDF exists in wrong location
+        if [[ -f "latex_source/main.pdf" ]]; then
+            print_warning "PDF also found in latex_source/ (wrong location)"
+            print_info "This should not happen with correct compilation"
+        fi
+    else
+        print_error "PDF was not generated!"
+        if [[ -f "latex_source/main.pdf" ]]; then
+            print_error "PDF found in latex_source/ instead of build/"
+            print_error "This indicates a compilation issue"
+        fi
+        print_info "Check build/main.log for details"
+        exit 1
+    fi
+}
+
+# Command: clean
+cmd_clean() {
+    print_info "Cleaning build artifacts..."
+    rm -rf build/
+    print_success "Build directory cleaned"
+}
+
+# Command: commit (smart git commit with workflow labels)
+cmd_commit() {
+    local commit_script="$SCRIPT_DIR/.latexkit/scripts/bash/smart-commit.sh"
+    
+    if [[ ! -x "$commit_script" ]]; then
+        print_error "Smart commit script not found or not executable!"
+        print_info "Expected: $commit_script"
+        exit 1
+    fi
+    
+    # Pass all arguments to the smart-commit script
+    "$commit_script" "$@"
+}
+
+# Command: reset (destructive clean - strips to template)
+cmd_reset() {
+    print_header
+    
+    # Detect workflow type
+    local is_copilot_workflow=false
+    if [[ -d "documents" ]]; then
+        is_copilot_workflow=true
+    fi
+    
+    echo -e "${RED}⚠️  WARNING: DESTRUCTIVE OPERATION ⚠️${NC}"
+    echo ""
+    
+    if [[ "$is_copilot_workflow" == true ]]; then
+        # Copilot workflow - interactive reset
+        echo -e "${CYAN}What would you like to reset?${NC}"
+        echo "  [1] This project only"
+        echo "  [2] All projects"
+        echo "  [3] Cancel"
+        echo ""
+        read -p "Select option [1-3]: " -r scope_choice
+        echo ""
+        
+        if [[ "$scope_choice" == "3" ]]; then
+            print_info "Reset cancelled"
+            exit 0
+        fi
+        
+        if [[ "$scope_choice" == "1" ]]; then
+            # Reset current project only
+            
+            # Get current branch and project
+            if ! command -v git &> /dev/null || [[ ! -d ".git" ]]; then
+                print_error "Git not available or not in a git repository"
+                exit 1
+            fi
+            
+            local current_branch=$(git branch --show-current 2>/dev/null)
+            if [[ -z "$current_branch" ]] || [[ "$current_branch" == "main" ]] || [[ "$current_branch" == "master" ]]; then
+                print_error "Not on a project branch. Please switch to a project branch first."
+                exit 1
+            fi
+            
+            # Extract project number from branch (e.g., "001-project-name" -> "001")
+            local project_num=$(echo "$current_branch" | grep -o '^[0-9]\{3\}')
+            if [[ -z "$project_num" ]]; then
+                print_error "Current branch does not follow naming convention (NNN-project-name)"
+                exit 1
+            fi
+            
+            # Find project directory
+            local project_dir=$(find documents -maxdepth 1 -type d -name "${project_num}-*" 2>/dev/null | head -n 1)
+            if [[ -z "$project_dir" ]]; then
+                print_error "Project directory not found: documents/${project_num}-*"
+                exit 1
+            fi
+            
+            echo -e "${YELLOW}This will:${NC}"
+            echo "  • Delete project folder: $project_dir"
+            echo "  • Create RESET commit on current branch"
+            echo "  • Ask about merging to main"
+            echo ""
+            echo -e "${RED}This action CANNOT be undone!${NC}"
+            echo ""
+            read -p "Type 'RESET' to confirm: " -r
+            echo
+            
+            if [[ "$REPLY" != "RESET" ]]; then
+                print_info "Reset cancelled"
+                exit 0
+            fi
+            
+            # Delete project folder
+            print_info "Deleting project: $project_dir"
+            rm -rf "$project_dir"
+            print_success "Project folder deleted"
+            
+            # Commit the reset
+            print_info "Creating RESET commit..."
+            git add -A
+            git commit -m "RESET: Remove project ${project_num}" -m "Deleted project folder and all contents" 2>/dev/null || print_warning "Nothing to commit or commit failed"
+            
+            # Ask about merging to main
+            echo ""
+            echo -e "${CYAN}Would you like to merge this branch to main?${NC}"
+            read -p "Merge to main? [y/N]: " -r merge_choice
+            echo ""
+            
+            if [[ "$merge_choice" =~ ^[Yy]$ ]]; then
+                print_info "Switching to main branch..."
+                local main_branch="main"
+                git checkout main 2>/dev/null || {
+                    git checkout master 2>/dev/null && main_branch="master"
+                }
+                
+                if [[ $? -eq 0 ]]; then
+                    print_info "Merging branch '$current_branch' into $main_branch..."
+                    if git merge --no-ff "$current_branch" --no-edit 2>&1 | tee /tmp/latexkit_merge_output.txt; then
+                        print_success "Successfully merged '$current_branch' into $main_branch"
+                        print_info "Branch '$current_branch' kept for reference"
+                        print_info "Now on branch: $main_branch"
+                    else
+                        print_error "Merge failed!"
+                        cat /tmp/latexkit_merge_output.txt
+                        print_warning "Staying on branch: $main_branch"
+                        print_info "You may need to resolve conflicts manually"
+                    fi
+                    rm -f /tmp/latexkit_merge_output.txt
+                else
+                    print_error "Could not switch to main/master branch"
+                    print_info "Staying on branch: $current_branch"
+                fi
+            else
+                print_info "Staying on branch: $current_branch"
+            fi
+            
+            echo ""
+            print_success "Reset complete!"
+            
+        elif [[ "$scope_choice" == "2" ]]; then
+            # Reset all projects
+            
+            echo -e "${YELLOW}This will:${NC}"
+            echo "  • Delete entire documents/ directory"
+            echo "  • Create RESET commit"
+            echo "  • Merge to main branch"
+            echo ""
+            echo -e "${RED}This action CANNOT be undone!${NC}"
+            echo ""
+            read -p "Type 'RESET' to confirm: " -r
+            echo
+            
+            if [[ "$REPLY" != "RESET" ]]; then
+                print_info "Reset cancelled"
+                exit 0
+            fi
+            
+            # Delete all projects
+            print_info "Deleting all projects..."
+            rm -rf documents/
+            print_success "All projects deleted"
+            
+            # Commit the reset
+            print_info "Creating RESET commit..."
+            if command -v git &> /dev/null && [[ -d ".git" ]]; then
+                local current_branch=$(git branch --show-current 2>/dev/null)
+                git add -A
+                git commit -m "RESET: Remove all projects" -m "Deleted entire documents directory" 2>/dev/null || print_warning "Nothing to commit or commit failed"
+                
+                # Merge to main
+                print_info "Switching to main branch..."
+                local main_branch="main"
+                git checkout main 2>/dev/null || {
+                    git checkout master 2>/dev/null && main_branch="master"
+                }
+                
+                if [[ $? -eq 0 ]]; then
+                    if [[ -n "$current_branch" ]] && [[ "$current_branch" != "main" ]] && [[ "$current_branch" != "master" ]]; then
+                        print_info "Merging branch '$current_branch' into $main_branch..."
+                        if git merge --no-ff "$current_branch" --no-edit 2>&1; then
+                            print_success "Successfully merged '$current_branch' into $main_branch"
+                        else
+                            print_warning "Merge encountered issues"
+                        fi
+                    else
+                        print_info "Already on $main_branch, no merge needed"
+                    fi
+                else
+                    print_warning "Could not switch to main/master branch"
+                fi
+            fi
+            
+            echo ""
+            print_success "Reset complete!"
+            
+        else
+            print_error "Invalid option selected"
+            exit 1
+        fi
+        
+    else
+        # Traditional CLI workflow reset
+        if [[ ! -f "$CONFIG_FILE" ]]; then
+            print_error "No LaTeXKit project found in current directory!"
+            exit 1
+        fi
+        
+        echo "This will:"
+        echo "  • Delete all content in latex_source/"
+        echo "  • Remove all build artifacts"
+        echo "  • Reset to a clean template state (Reference Mode)"
+        echo ""
+        echo -e "${YELLOW}This action CANNOT be undone!${NC}"
+        echo ""
+        read -p "Type 'RESET' to confirm: " -r
+        echo
+        
+        if [[ "$REPLY" != "RESET" ]]; then
+            print_info "Reset cancelled"
+            exit 0
+        fi
+        
+        # Get current layout from config
+        local layout="academic-assignment"
+        if command -v jq &> /dev/null; then
+            layout=$(jq -r '.project.layout' "$CONFIG_FILE")
+        fi
+        
+        # Check if layout exists
+        if [[ ! -d "$REGISTRY_DIR/layouts/$layout" ]]; then
+            print_error "Layout '$layout' not found in registry!"
+            print_info "Defaulting to 'academic-assignment' layout"
+            layout="academic-assignment"
+        fi
+        
+        print_info "Resetting project to template state..."
+        
+        # Remove existing directories
+        rm -rf latex_source/
+        rm -rf build/
+        
+        # Recreate structure
+        mkdir -p latex_source/{sections,images}
+        
+        # Copy fresh layout files (Sections only)
+        print_info "Restoring layout structure: $layout"
+        cp -r "$REGISTRY_DIR/layouts/$layout/sections" latex_source/
+        
+        # Recreate main.tex with references
+        print_info "Restoring main.tex with template references..."
+        local original_main="$REGISTRY_DIR/layouts/$layout/main.tex"
+        
+        echo "%!TeX root = main.tex" > latex_source/main.tex
+        echo "%% LATEXKIT CONFIGURATION" >> latex_source/main.tex
+        echo "%% This path points to the shared template registry." >> latex_source/main.tex
+        echo "\newcommand{\latexKitPath}{../registry/layouts/$layout}" >> latex_source/main.tex
+        echo "" >> latex_source/main.tex
+        
+        cat "$original_main" >> latex_source/main.tex
+        sed -i '' 's|\\input{preamble.tex}|\\input{\\latexKitPath/preamble.tex}|g' latex_source/main.tex
+        
+        # Reset config file
+        print_info "Resetting configuration..."
+        cat > "$CONFIG_FILE" <<EOF
+{
+  "project": {
+    "name": "My LaTeX Project",
+    "layout": "$layout",
+    "language": "indonesian"
+  },
+  "components": [],
+  "style": {
+    "font": "Times New Roman",
+    "fontSize": "12pt",
+    "lineSpacing": 1.5,
+    "margin": "1in"
+  },
+  "paths": {
+    "source": "latex_source",
+    "output": "build",
+    "bibliography": "zotero_export/<your-export>.bib"
+  }
+}
+EOF
+        
+        echo ""
+        print_success "Project reset to clean template state (Reference Mode)!"
+        print_info "Layout: $layout"
+    fi
+}
+
+# Command: help
+cmd_help() {
+    print_header
+    echo "Usage: ./latexkit <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  start [--layout <name>] Start a new LaTeX project"
+    echo "  add <component>         Add a component to your project"
+    echo "  list                    List available layouts and components"
+    echo "  build                   Compile the LaTeX document"
+    echo "  clean                   Remove build artifacts"
+    echo "  commit [stage] [opts]   Smart git commit with workflow labels"
+    echo "  reset                   🔥 Reset projects with auto git workflow (DESTRUCTIVE)"
+    echo "  help                    Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  ./latexkit start"
+    echo "  ./latexkit add table"
+    echo "  ./latexkit build"
+    echo "  ./latexkit commit research -m \"Add peer-reviewed sources\""
+    echo "  ./latexkit reset        # Interactive: project/all + auto commit"
+}
+
+# Main command router
+main() {
+    if [[ $# -eq 0 ]]; then
+        cmd_help
+        exit 0
+    fi
+    
+    case "$1" in
+        start)
+            shift
+            cmd_start "$@"
+            ;;
+        init)
+            # Keep init as alias for backwards compatibility
+            print_warning "Command 'init' is deprecated. Use 'start' instead."
+            shift
+            cmd_start "$@"
+            ;;
+        add)
+            shift
+            cmd_add "$@"
+            ;;
+        list)
+            cmd_list
+            ;;
+        build)
+            cmd_build
+            ;;
+        clean)
+            cmd_clean
+            ;;
+        commit)
+            shift
+            cmd_commit "$@"
+            ;;
+        reset)
+            cmd_reset
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        *)
+            print_error "Unknown command: $1"
+            echo ""
+            cmd_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

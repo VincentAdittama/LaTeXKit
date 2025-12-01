@@ -1,0 +1,16 @@
+# Project-local latexmk configuration: force XeLaTeX and biber for biblatex
+# Use XeLaTeX because this document loads fontspec and uses XeTeX primitives.
+
+$pdf_mode = 1; # produce PDF
+
+# Use xelatex in place of pdflatex
+$pdflatex = 'xelatex -interaction=nonstopmode -synctex=1 %O %S';
+
+# Use biber for biblatex backend
+$bibtex = 'biber %O %S';
+
+# Place auxiliary and output files in the build/ directory (latexmk -outdir support)
+$out_dir = '../build';
+
+# Keep warnings about missing files visible
+$silent = 0;

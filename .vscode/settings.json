@@ -1,0 +1,41 @@
+{
+    "chat.promptFilesRecommendations": {
+        "latexkit.start": true,
+        "latexkit.research": true,
+        "latexkit.outline": true,
+        "latexkit.draft": true,
+        "latexkit.convert": true,
+        "latexkit.build": true,
+        "latexkit.check": true,
+        "latexkit.commit": true
+    },
+    "chat.tools.terminal.autoApprove": {
+        ".latexkit/scripts/bash/": true
+    },
+    "files.associations": {
+        "*.tex": "latex",
+        "*.bib": "bibtex",
+        "*.md": "markdown"
+    },
+    "latex-workshop.latex.autoBuild.run": "onSave",
+    "latex-workshop.latex.recipe.default": "latexmk (latexmkrc)",
+    "latex-workshop.latex.outDir": "../build",
+    "latex-workshop.view.pdf.viewer": "tab",
+    "[latex]": {
+        "editor.wordWrap": "on",
+        "editor.formatOnSave": false
+    },
+    "[markdown]": {
+        "editor.wordWrap": "on",
+        "editor.quickSuggestions": {
+            "comments": "on",
+            "strings": "on",
+            "other": "on"
+        }
+    },
+    "workbench.colorCustomizations": {
+        "editorBracketHighlight.foreground1": "#FFD700",
+        "editorBracketHighlight.foreground2": "#DA70D6",
+        "editorBracketHighlight.foreground3": "#87CEFA"
+    }
+}

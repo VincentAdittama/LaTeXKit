@@ -1,0 +1,64 @@
+%% ============================================
+%% COMPONENT: Math Environments and Utilities
+%% ============================================
+%% Usage: Include this file in your preamble
+%% \input{components/math.tex}
+%% ============================================
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+
+%% Define theorem environments
+\theoremstyle{definition}
+\newtheorem{definition}{Definisi}[section]
+\newtheorem{example}{Contoh}[section]
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Teorema}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{proposition}{Proposisi}[section]
+\newtheorem{corollary}{Akibat}[section]
+
+\theoremstyle{remark}
+\newtheorem{remark}{Catatan}[section]
+\newtheorem{note}{Note}[section]
+
+%% Custom math operators
+\DeclareMathOperator{\sgn}{sgn}
+\DeclareMathOperator{\arccot}{arccot}
+
+%% Custom commands for common notations
+\newcommand{\R}{\mathbb{R}}  % Real numbers
+\newcommand{\N}{\mathbb{N}}  % Natural numbers
+\newcommand{\Z}{\mathbb{Z}}  % Integers
+\newcommand{\Q}{\mathbb{Q}}  % Rational numbers
+\newcommand{\C}{\mathbb{C}}  % Complex numbers
+
+%% Vector notation
+\renewcommand{\vec}[1]{\mathbf{#1}}
+
+%% Absolute value and norm
+\DeclarePairedDelimiter{\abs}{\lvert}{\rvert}
+\DeclarePairedDelimiter{\norm}{\lVert}{\rVert}
+
+%% Boxed equation for important results
+\newcommand{\boxedeq}[1]{%
+  \begin{equation}
+    \boxed{#1}
+  \end{equation}
+}
+
+%% Example usage (commented out):
+% \begin{theorem}
+%   For all $x \in \R$, we have $x^2 \geq 0$.
+% \end{theorem}
+%
+% \begin{proof}
+%   This follows from the definition of real numbers.
+% \end{proof}
+%
+% \begin{definition}
+%   A set $S \subseteq \R$ is called \emph{bounded} if...
+% \end{definition}

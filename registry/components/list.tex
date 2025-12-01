@@ -1,0 +1,71 @@
+%% ============================================
+%% COMPONENT: Custom List Styles
+%% ============================================
+%% Usage: Include this file in your preamble
+%% \input{components/list.tex}
+%% ============================================
+
+\usepackage{enumitem}
+
+%% Configure default list spacing
+\setlist{
+  itemsep=2pt,
+  parsep=0pt,
+  topsep=6pt,
+  partopsep=0pt
+}
+
+%% Numbered list style
+\newlist{numlist}{enumerate}{3}
+\setlist[numlist,1]{label=\arabic*., leftmargin=*}
+\setlist[numlist,2]{label=\alph*), leftmargin=*}
+\setlist[numlist,3]{label=\roman*., leftmargin=*}
+
+%% Bullet list style
+\newlist{bulletlist}{itemize}{3}
+\setlist[bulletlist,1]{label=\textbullet, leftmargin=*}
+\setlist[bulletlist,2]{label=\textendash, leftmargin=*}
+\setlist[bulletlist,3]{label=\textasteriskcentered, leftmargin=*}
+
+%% Compact list (tight spacing)
+\newlist{compactlist}{itemize}{1}
+\setlist[compactlist]{
+  label=\textbullet,
+  itemsep=0pt,
+  parsep=0pt,
+  topsep=3pt,
+  leftmargin=*
+}
+
+%% Checklist style
+\newlist{checklist}{itemize}{1}
+\setlist[checklist]{
+  label=$\square$,
+  leftmargin=*
+}
+
+%% Custom description list
+\setlist[description]{
+  font=\bfseries,
+  leftmargin=2em,
+  style=nextline
+}
+
+%% Example usage (commented out):
+% \begin{numlist}
+%   \item First item
+%   \item Second item
+%   \begin{numlist}
+%     \item Nested item
+%   \end{numlist}
+% \end{numlist}
+%
+% \begin{bulletlist}
+%   \item First bullet
+%   \item Second bullet
+% \end{bulletlist}
+%
+% \begin{checklist}
+%   \item Task one
+%   \item Task two
+% \end{checklist}

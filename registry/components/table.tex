@@ -1,0 +1,60 @@
+%% ============================================
+%% COMPONENT: Professional Table Styles
+%% ============================================
+%% Usage: Include this file in your preamble
+%% \input{components/table.tex}
+%% ============================================
+
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{colortbl}
+
+%% Define custom colors for tables
+\definecolor{tableheader}{RGB}{240, 240, 240}
+\definecolor{tableodd}{RGB}{250, 250, 250}
+
+%% Custom column types
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+%% Environment: Basic Professional Table
+\newenvironment{protable}[1][1.2]{%
+  \renewcommand{\arraystretch}{#1}%
+  \begin{table}[htbp]
+  \centering
+}{%
+  \end{table}
+}
+
+%% Environment: Striped Table
+\newenvironment{stripedtable}[1][1.2]{%
+  \renewcommand{\arraystretch}{#1}%
+  \rowcolors{2}{white}{tableodd}
+  \begin{table}[htbp]
+  \centering
+}{%
+  \end{table}
+}
+
+%% Command: Table Header Row
+\newcommand{\tableheader}{%
+  \rowcolor{tableheader}\bfseries
+}
+
+%% Example usage (commented out):
+% \begin{protable}
+%   \caption{Your table caption}
+%   \label{tab:example}
+%   \begin{tabular}{lcc}
+%     \toprule
+%     \tableheader Column 1 & Column 2 & Column 3 \\
+%     \midrule
+%     Data 1 & Data 2 & Data 3 \\
+%     Data 4 & Data 5 & Data 6 \\
+%     \bottomrule
+%   \end{tabular}
+% \end{protable}

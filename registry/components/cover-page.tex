@@ -1,0 +1,82 @@
+%% ============================================
+%% COMPONENT: Custom Cover/Title Pages
+%% ============================================
+%% Usage: Include this file in your preamble
+%% \input{components/cover-page.tex}
+%% ============================================
+
+%% Command: Simple Academic Cover Page
+%% Usage: \simplecover{title}{course}{author}{professor}{date}
+\newcommand{\simplecover}[5]{%
+  \begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    {\Huge\bfseries #1\par}
+    \vspace{1.5cm}
+    {\Large Mata Kuliah: \textit{#2}\par}
+    \vspace{2.5cm}
+    {\Large #3\par}
+    \vfill
+    {\Large Dosen: #4\par}
+    \vspace{0.25cm}
+    {\Large #5\par}
+  \end{titlepage}
+  \newpage
+}
+
+%% Command: Formal Cover with Logo
+%% Usage: \formalcover{logo}{title}{subtitle}{author}{institution}{date}
+\newcommand{\formalcover}[6]{%
+  \begin{titlepage}
+    \centering
+    \vspace*{1cm}
+    \includegraphics[width=0.3\textwidth]{#1}\\[1cm]
+    {\huge\bfseries #2\par}
+    \vspace{0.5cm}
+    {\Large\itshape #3\par}
+    \vspace{3cm}
+    {\Large #4\par}
+    \vfill
+    {\large #5\par}
+    \vspace{0.5cm}
+    {\large #6\par}
+  \end{titlepage}
+  \newpage
+}
+
+%% Command: Group Assignment Cover
+%% Usage: \groupcover{title}{course}{members}{professor}{date}
+%% members should be formatted as: Name 1 (NIM)\\Name 2 (NIM)\\...
+\newcommand{\groupcover}[5]{%
+  \begin{titlepage}
+    \centering
+    \setstretch{1.5}
+    \vspace*{2cm}
+    {\Huge\bfseries #1\par}
+    \vspace{1.5cm}
+    {\Large Mata Kuliah: \textit{#2}\par}
+    \vspace{2cm}
+    {\large\bfseries Disusun Oleh:\par}
+    \vspace{0.5cm}
+    {\large #3\par}
+    \vfill
+    {\Large Dosen: #4\par}
+    \vspace{0.25cm}
+    {\Large #5\par}
+  \end{titlepage}
+  \newpage
+}
+
+%% Command: Minimalist Cover
+\newcommand{\minimalcover}[3]{%
+  \begin{titlepage}
+    \raggedright
+    \vspace*{5cm}
+    {\Huge\bfseries #1\par}
+    \vspace{1cm}
+    {\Large #2\par}
+    \vfill
+    {\large #3\par}
+  \end{titlepage}
+  \newpage
+}

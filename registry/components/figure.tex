@@ -1,0 +1,73 @@
+%% ============================================
+%% COMPONENT: Figure and Image Handling
+%% ============================================
+%% Usage: Include this file in your preamble
+%% \input{components/figure.tex}
+%% ============================================
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+
+%% Configure caption style
+\captionsetup{
+  font=small,
+  labelfont=bf,
+  format=plain,
+  justification=centering,
+  skip=10pt
+}
+
+%% Command: Simple Figure
+%% Usage: \simplefig{width}{path}{caption}{label}
+\newcommand{\simplefig}[4]{%
+  \begin{figure}[htbp]
+    \centering
+    \includegraphics[width=#1]{#2}
+    \caption{#3}
+    \label{#4}
+  \end{figure}
+}
+
+%% Command: Figure with custom position
+%% Usage: \figpos{position}{width}{path}{caption}{label}
+\newcommand{\figpos}[5]{%
+  \begin{figure}[#1]
+    \centering
+    \includegraphics[width=#2]{#3}
+    \caption{#4}
+    \label{#5}
+  \end{figure}
+}
+
+%% Environment: Side-by-side figures
+%% Usage:
+%% \begin{sidefigs}{Overall Caption}{label}
+%%   \subfig{0.45}{path1}{caption1}{label1}
+%%   \subfig{0.45}{path2}{caption2}{label2}
+%% \end{sidefigs}
+\newenvironment{sidefigs}[2]{%
+  \begin{figure}[htbp]
+  \centering
+  \newcommand{\subfig}[4]{%
+    \begin{subfigure}{##1\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{##2}
+      \caption{##3}
+      \label{##4}
+    \end{subfigure}
+  }
+}{%
+  \caption{#1}
+  \label{#2}
+  \end{figure}
+}
+
+%% Example usage (commented out):
+% \simplefig{0.8\textwidth}{images/example.png}{This is a caption}{fig:example}
+%
+% \begin{sidefigs}{Two images side by side}{fig:sidebyside}
+%   \subfig{0.45}{images/img1.png}{First image}{fig:img1}
+%   \subfig{0.45}{images/img2.png}{Second image}{fig:img2}
+% \end{sidefigs}

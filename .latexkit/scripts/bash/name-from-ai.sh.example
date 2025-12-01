@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Example AI naming hook for LaTeXKit
+# Replace this script with your own implementation that calls your preferred
+# AI provider or local model to propose a concise slug for the given prompt.
+#
+# Contract:
+# - Input: full prompt/description as a single argument (string)
+# - Output: a short, hyphen- or space-separated name on a single line
+# - The main scripts will sanitize and cap length, so keep it human-meaningful.
+#
+# Example: naive keyword extraction using common tools only (no external calls)
+
+set -euo pipefail
+
+prompt="${1:-}"
+if [[ -z "$prompt" ]]; then
+  exit 0
+fi
+
+# Lowercase, remove non-alnum, split words, drop common stop-words
+stop_words="^(i|a|an|the|to|for|of|in|on|at|by|with|from|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|should|could|can|may|might|must|shall|this|that|these|those|my|your|our|their|want|need|add|get|set|write|create|make|draft|document|paper|report)$"
+words=$(printf "%s" "$prompt" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/ /g')
+
+out=""
+count=0
+for w in $words; do
+  [[ -z "$w" ]] && continue
+  if ! echo "$w" | grep -qiE "$stop_words"; then
+    if [[ -n "$out" ]]; then out="$out-$w"; else out="$w"; fi
+    count=$((count+1))
+    [[ $count -ge 4 ]] && break
+  fi
+
+done
+
+printf "%s\n" "$out"
