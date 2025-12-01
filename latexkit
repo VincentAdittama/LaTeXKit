@@ -353,17 +353,17 @@ cmd_commit() {
 }
 
 # =================================================================
-# MAIN-ONLY WORKFLOW COMMANDS
+# MAIN-ONLY WORKFLOW COMMANDS (v2 - Nested & Free Naming)
 # =================================================================
 
 # Command: new (create a new project in documents/)
-# Usage: ./latexkit new "Project Description" [--layout academic-assignment]
+# Usage: ./latexkit new "Project Name" [--folder "Semester 1"] [--layout academic-assignment]
 cmd_new() {
     print_header
     
-    local description=""
+    local name=""
+    local folder=""
     local layout="academic-assignment"
-    local short_name=""
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -372,23 +372,36 @@ cmd_new() {
                 layout="$2"
                 shift 2
                 ;;
-            --short-name)
-                short_name="$2"
+            --folder|-f)
+                folder="$2"
                 shift 2
                 ;;
             *)
-                if [[ -z "$description" ]]; then
-                    description="$1"
+                if [[ -z "$name" ]]; then
+                    name="$1"
                 fi
                 shift
                 ;;
         esac
     done
     
-    if [[ -z "$description" ]]; then
-        print_error "Please provide a project description"
-        echo "Usage: ./latexkit new \"Your Project Description\" [--layout academic-assignment]"
+    # Interactive prompts if missing
+    if [[ -z "$name" ]]; then
+        echo -e "${CYAN}Enter Project Name${NC} (e.g., 'Tugas Fisika Dasar'):"
+        read -p "> " name
+        echo ""
+    fi
+    
+    if [[ -z "$name" ]]; then
+        print_error "Project name cannot be empty"
         exit 1
+    fi
+    
+    if [[ -z "$folder" ]]; then
+        echo -e "${CYAN}Enter Category/Folder${NC} (Optional, e.g., 'Semester 1')."
+        echo "Leave empty to create at documents/ root:"
+        read -p "> " folder
+        echo ""
     fi
     
     # Check if layout exists
@@ -400,67 +413,56 @@ cmd_new() {
         exit 1
     fi
     
-    echo -e "${CYAN}Creating new project: ${description}${NC}"
+    echo -e "${CYAN}Creating new project: ${name}${NC}"
+    if [[ -n "$folder" ]]; then
+        echo -e "${CYAN}Category: ${folder}${NC}"
+    fi
     echo ""
     
     # Ensure documents directory exists
     mkdir -p "$SCRIPT_DIR/documents"
     
-    # Find next project number
-    local highest=0
-    for dir in "$SCRIPT_DIR/documents"/*; do
-        if [[ -d "$dir" ]]; then
-            local dirname=$(basename "$dir")
-            if [[ "$dirname" =~ ^([0-9]{3})- ]]; then
-                local number=$((10#${BASH_REMATCH[1]}))
-                if [[ "$number" -gt "$highest" ]]; then
-                    highest=$number
-                fi
-            fi
-        fi
-    done
-    local next=$((highest + 1))
-    local project_num=$(printf "%03d" "$next")
-    
-    # Generate project slug
-    local slug=""
-    if [[ -n "$short_name" ]]; then
-        slug=$(echo "$short_name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g; s/^-//; s/-$//')
-    else
-        # Use generate_concise_slug if available
-        if command -v generate_concise_slug &>/dev/null || declare -f generate_concise_slug &>/dev/null; then
-            slug=$(generate_concise_slug "$description")
-        else
-            # Fallback: simple slug generation
-            slug=$(echo "$description" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g; s/^-//; s/-$//' | cut -c1-48)
-        fi
+    # Build project path
+    local project_path="$name"
+    if [[ -n "$folder" ]]; then
+        project_path="$folder/$name"
     fi
     
-    local project_id="${project_num}-${slug}"
-    local project_dir="$SCRIPT_DIR/documents/$project_id"
+    local project_dir="$SCRIPT_DIR/documents/$project_path"
     
-    print_info "Project ID: $project_id"
+    # Check if directory already exists
+    if [[ -d "$project_dir" ]]; then
+        print_error "Directory already exists: documents/$project_path"
+        exit 1
+    fi
+    
+    print_info "Project path: documents/$project_path"
     
     # Create project directory structure
     mkdir -p "$project_dir"/{checklists,latex_source/{sections,images},build,assignment_info,zotero_export}
     mkdir -p "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}
     
     # Add .gitkeep files to preserve empty directories
-    for dir in "$project_dir"/build "$project_dir"/assignment_info "$project_dir"/zotero_export \
-               "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}; do
-        touch "$dir/.gitkeep"
-    done
+    find "$project_dir" -type d -empty -exec touch {}/.gitkeep \;
     
     # Copy layout template files
     print_info "Copying layout template: $layout"
     cp -r "$REGISTRY_DIR/layouts/$layout/sections"/* "$project_dir/latex_source/sections/" 2>/dev/null || true
+    
+    # Calculate relative path back to registry
+    # Count depth: documents/[folder/]project/latex_source -> registry
+    local depth=$(echo "$project_path" | tr -cd '/' | wc -c | tr -d ' ')
+    local back_path="../.."  # Base: documents/project
+    for ((i=0; i<depth; i++)); do
+        back_path="../$back_path"
+    done
     
     # Create main.tex with template reference
     cat > "$project_dir/latex_source/main.tex" <<EOF
 %!TeX root = main.tex
 %% LATEXKIT CONFIGURATION
 %% This path points to the shared template registry.
-\\newcommand{\\latexKitPath}{../../registry/layouts/$layout}
+\\newcommand{\\latexKitPath}{${back_path}/registry/layouts/$layout}
 
 $(cat "$REGISTRY_DIR/layouts/$layout/main.tex")
 EOF
@@ -471,9 +473,8 @@ EOF
     # Create basic start.md
     local today=$(date +%Y-%m-%d)
     cat > "$project_dir/start.md" <<EOF
-# Project Start File: $description
+# Project: $name
 
-**Document ID**: \`$project_id\`  
 **Created**: \`$today\`  
 **Status**: \`Draft\`
 
@@ -482,7 +483,7 @@ EOF
 ## Executive Summary
 
 ### Purpose
-$description
+$name
 
 ### Type
 **Document Type**: \`Assignment\`
@@ -502,108 +503,114 @@ $description
 <!-- Add project notes here -->
 EOF
     
-    # Set as active project
-    echo "$project_id" > "$SCRIPT_DIR/.active_project"
+    # Set as active project (store relative path)
+    echo "$project_path" > "$SCRIPT_DIR/.active_project"
     
-    print_success "Project created: $project_dir"
+    print_success "Project created: documents/$project_path"
     echo ""
-    echo -e "${GREEN}Project '$project_id' is now active!${NC}"
+    echo -e "${GREEN}Project '$name' is now active!${NC}"
     echo ""
     echo "Next steps:"
-    echo "  1. Edit $project_dir/start.md with project details"
+    echo "  1. Edit documents/$project_path/start.md with project details"
     echo "  2. Run /latexkit.start in Copilot Chat to complete setup"
     echo "  3. Or use ./latexkit build to compile"
     echo ""
-    echo "Switch projects anytime with: ./latexkit switch $project_num"
+    echo "Switch projects anytime with: ./latexkit switch"
 }
 
-# Command: switch (change active project)
-# Usage: ./latexkit switch <project_id|project_num>
+# Command: switch (change active project - interactive selection)
+# Usage: ./latexkit switch [path]
 cmd_switch() {
-    local project_id="$1"
+    local target="$1"
     
-    if [[ -z "$project_id" ]]; then
-        # Show project list and prompt
-        echo -e "${CYAN}Available projects:${NC}"
-        echo ""
-        
-        local active=$(cat "$SCRIPT_DIR/.active_project" 2>/dev/null || echo "")
-        local count=0
-        
-        for dir in "$SCRIPT_DIR/documents"/*; do
-            if [[ -d "$dir" ]]; then
-                local dirname=$(basename "$dir")
-                if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
-                    count=$((count + 1))
-                    if [[ "$dirname" == "$active" ]]; then
-                        echo -e "  ${GREEN}*${NC} $dirname ${GREEN}(active)${NC}"
-                    else
-                        echo "    $dirname"
-                    fi
-                fi
-            fi
-        done
-        
-        if [[ "$count" -eq 0 ]]; then
-            print_warning "No projects found"
-            echo "Create one with: ./latexkit new \"Project Description\""
-            exit 0
+    # If user provides exact path, try direct switch
+    if [[ -n "$target" ]]; then
+        if [[ -d "$SCRIPT_DIR/documents/$target" && -f "$SCRIPT_DIR/documents/$target/start.md" ]]; then
+            echo "$target" > "$SCRIPT_DIR/.active_project"
+            print_success "Switched to: $target"
+            return
         fi
         
-        echo ""
-        read -p "Enter project number or ID to switch to: " -r project_id
-        echo ""
-        
-        if [[ -z "$project_id" ]]; then
-            print_info "Switch cancelled"
-            exit 0
+        # Legacy support: try numeric lookup (e.g., "1" -> "001-something")
+        if [[ "$target" =~ ^[0-9]+$ ]]; then
+            local padded=$(printf "%03d" "$((10#$target))")
+            local found=$(find "$SCRIPT_DIR/documents" -type d -name "${padded}-*" 2>/dev/null | head -1)
+            if [[ -n "$found" && -f "$found/start.md" ]]; then
+                local rel_path="${found#$SCRIPT_DIR/documents/}"
+                echo "$rel_path" > "$SCRIPT_DIR/.active_project"
+                print_success "Switched to: $rel_path"
+                return
+            fi
         fi
-    fi
-    
-    # Support numeric prefix (e.g., "001" or "1")
-    if [[ "$project_id" =~ ^[0-9]+$ ]]; then
-        local padded=$(printf "%03d" "$((10#$project_id))")
-        # Find project by prefix
-        for dir in "$SCRIPT_DIR/documents"/"$padded"-*; do
-            if [[ -d "$dir" ]]; then
-                project_id=$(basename "$dir")
-                break
-            fi
-        done
-    fi
-    
-    # Validate project exists
-    if [[ ! -d "$SCRIPT_DIR/documents/$project_id" ]]; then
-        print_error "Project not found: $project_id"
+        
+        print_warning "Project not found: $target"
+        echo "Entering interactive mode..."
         echo ""
-        echo "Available projects:"
-        for dir in "$SCRIPT_DIR/documents"/*; do
-            if [[ -d "$dir" ]]; then
-                local dirname=$(basename "$dir")
-                if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
-                    echo "  - $dirname"
-                fi
-            fi
-        done
+    fi
+    
+    # Interactive selection
+    echo -e "${CYAN}Available Projects:${NC}"
+    echo ""
+    
+    # Collect all projects (folders with start.md)
+    local projects=()
+    local i=1
+    local active=$(cat "$SCRIPT_DIR/.active_project" 2>/dev/null || echo "")
+    
+    while IFS= read -r start_file; do
+        local p_dir=$(dirname "$start_file")
+        local rel_path="${p_dir#$SCRIPT_DIR/documents/}"
+        projects+=("$rel_path")
+        
+        # Get title from start.md
+        local title=""
+        if [[ -f "$start_file" ]]; then
+            title=$(head -5 "$start_file" | grep "^# " | head -1 | sed 's/^# Project: //' | sed 's/^# //')
+        fi
+        
+        local marker="  "
+        local suffix=""
+        if [[ "$rel_path" == "$active" ]]; then
+            marker="${GREEN}▶${NC}"
+            suffix=" ${GREEN}(active)${NC}"
+        fi
+        
+        echo -e "  $marker [$i] $rel_path$suffix"
+        if [[ -n "$title" && "$title" != "$rel_path" ]]; then
+            echo "        └─ $title"
+        fi
+        ((i++))
+    done < <(find "$SCRIPT_DIR/documents" -name "start.md" -not -path "*/.*" 2>/dev/null | sort)
+    
+    if [[ ${#projects[@]} -eq 0 ]]; then
+        print_warning "No projects found"
+        echo ""
+        echo "Create a new project:"
+        echo "  ./latexkit new \"Project Name\""
+        echo "  ./latexkit new \"Project Name\" --folder \"Semester 1\""
+        exit 0
+    fi
+    
+    echo ""
+    read -p "Select project number (1-${#projects[@]}): " selection
+    
+    if [[ -z "$selection" ]]; then
+        print_info "Switch cancelled"
+        exit 0
+    fi
+    
+    if [[ "$selection" =~ ^[0-9]+$ ]] && [[ "$selection" -ge 1 ]] && [[ "$selection" -le ${#projects[@]} ]]; then
+        local idx=$((selection - 1))
+        local selected="${projects[$idx]}"
+        echo "$selected" > "$SCRIPT_DIR/.active_project"
+        print_success "Switched to: $selected"
+    else
+        print_error "Invalid selection: $selection"
         exit 1
     fi
-    
-    # Set active project
-    echo "$project_id" > "$SCRIPT_DIR/.active_project"
-    print_success "Switched to project: $project_id"
-    
-    # Show project info
-    local start_file="$SCRIPT_DIR/documents/$project_id/start.md"
-    if [[ -f "$start_file" ]]; then
-        local title=$(head -5 "$start_file" | grep "^# " | head -1 | sed 's/^# //')
-        if [[ -n "$title" ]]; then
-            echo ""
-            print_info "Project: $title"
-        fi
-    fi
 }
 
-# Command: projects (list all projects)
+# Command: projects (list all projects - supports nested folders)
 cmd_projects() {
     print_header
     
@@ -613,44 +620,44 @@ cmd_projects() {
     local active=$(cat "$SCRIPT_DIR/.active_project" 2>/dev/null || echo "")
     local count=0
     
-    for dir in "$SCRIPT_DIR/documents"/*; do
-        if [[ -d "$dir" ]]; then
-            local dirname=$(basename "$dir")
-            if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
-                count=$((count + 1))
-                local marker="  "
-                local suffix=""
-                
-                if [[ "$dirname" == "$active" ]]; then
-                    marker="${GREEN}▶${NC}"
-                    suffix="${GREEN}(active)${NC}"
-                fi
-                
-                # Try to get title from start.md
-                local start_file="$dir/start.md"
-                local title=""
-                if [[ -f "$start_file" ]]; then
-                    title=$(head -5 "$start_file" | grep "^# " | head -1 | sed 's/^# Project Start File: //')
-                fi
-                
-                echo -e "  $marker $dirname $suffix"
-                if [[ -n "$title" ]]; then
-                    echo "      └─ $title"
-                fi
-            fi
+    # Find all projects (folders with start.md)
+    while IFS= read -r start_file; do
+        local p_dir=$(dirname "$start_file")
+        local rel_path="${p_dir#$SCRIPT_DIR/documents/}"
+        count=$((count + 1))
+        
+        local marker="  "
+        local suffix=""
+        
+        if [[ "$rel_path" == "$active" ]]; then
+            marker="${GREEN}▶${NC}"
+            suffix=" ${GREEN}(active)${NC}"
         fi
-    done
+        
+        # Try to get title from start.md
+        local title=""
+        if [[ -f "$start_file" ]]; then
+            title=$(head -5 "$start_file" | grep "^# " | head -1 | sed 's/^# Project: //' | sed 's/^# //')
+        fi
+        
+        echo -e "  $marker $rel_path$suffix"
+        if [[ -n "$title" && "$title" != "$rel_path" ]]; then
+            echo "      └─ $title"
+        fi
+    done < <(find "$SCRIPT_DIR/documents" -name "start.md" -not -path "*/.*" 2>/dev/null | sort)
     
     if [[ "$count" -eq 0 ]]; then
         print_warning "No projects found"
         echo ""
         echo "Create a new project:"
-        echo "  ./latexkit new \"Your Project Description\""
+        echo "  ./latexkit new \"Project Name\""
+        echo "  ./latexkit new \"Project Name\" --folder \"Semester 1\""
     else
         echo ""
         echo "Commands:"
-        echo "  ./latexkit switch <num>  Switch to a project (e.g., ./latexkit switch 1)"
-        echo "  ./latexkit new \"desc\"    Create a new project"
+        echo "  ./latexkit switch         Interactive project selection"
+        echo "  ./latexkit new \"name\"     Create a new project"
+        echo "  ./latexkit new \"name\" -f \"Semester 1\"   Create in folder"
     fi
 }
 
@@ -662,8 +669,8 @@ cmd_current() {
         print_warning "No active project"
         echo ""
         echo "Set an active project:"
-        echo "  ./latexkit switch <project_id>"
-        echo "  ./latexkit new \"Project Description\""
+        echo "  ./latexkit switch"
+        echo "  ./latexkit new \"Project Name\""
         exit 0
     fi
     
@@ -673,8 +680,8 @@ cmd_current() {
     local start_file="$project_dir/start.md"
     
     if [[ -f "$start_file" ]]; then
-        local title=$(head -5 "$start_file" | grep "^# " | head -1 | sed 's/^# Project Start File: //')
-        if [[ -n "$title" ]]; then
+        local title=$(head -5 "$start_file" | grep "^# " | head -1 | sed 's/^# Project: //' | sed 's/^# //')
+        if [[ -n "$title" && "$title" != "$active" ]]; then
             echo "Title: $title"
         fi
     fi
@@ -959,9 +966,11 @@ cmd_help() {
     print_header
     echo "Usage: ./latexkit <command> [options]"
     echo ""
-    echo -e "${CYAN}Project Management (Main-Only Workflow):${NC}"
-    echo "  new \"description\"       Create a new project in documents/"
-    echo "  switch <id|num>         Switch active project (e.g., switch 1 or switch 001-my-project)"
+    echo -e "${CYAN}Project Management (Nested Folders & Free Naming):${NC}"
+    echo "  new \"name\"              Create a new project"
+    echo "  new \"name\" -f \"folder\"  Create project in folder (e.g., 'Semester 1')"
+    echo "  switch                  Interactive project selection"
+    echo "  switch \"path\"           Switch to specific project path"
     echo "  projects                List all projects"
     echo "  current                 Show current active project"
     echo ""
@@ -979,11 +988,12 @@ cmd_help() {
     echo "  help                    Show this help message"
     echo ""
     echo -e "${CYAN}Examples:${NC}"
-    echo "  ./latexkit new \"Essay Sejarah Indonesia\"   # Create new project"
-    echo "  ./latexkit switch 1                         # Switch to project 001"
-    echo "  ./latexkit projects                         # List all projects"
-    echo "  ./latexkit build                            # Compile current project"
-    echo "  ./latexkit commit research                  # Commit with RESEARCH label"
+    echo "  ./latexkit new \"Tugas Fisika\"                       # Create project"
+    echo "  ./latexkit new \"Tugas Fisika\" -f \"Semester 1\"       # Create in folder"
+    echo "  ./latexkit switch                                    # Interactive selection"
+    echo "  ./latexkit switch \"Semester 1/Tugas Fisika\"         # Direct switch"
+    echo "  ./latexkit projects                                  # List all projects"
+    echo "  ./latexkit build                                     # Compile current project"
 }
 
 # Main command router
