@@ -10,6 +10,7 @@ set -e
 
 VERSION="1.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="${LATEXKIT_SUPER_REPO_ROOT:-$SCRIPT_DIR}"
 REGISTRY_DIR="$SCRIPT_DIR/.latexkit/registry"
 CONFIG_FILE="latexkit.config.json"
 
@@ -267,9 +268,9 @@ cmd_list() {
 cmd_build() {
     if [[ ! -d "latex_source" ]]; then
         # Try to find active project
-        local active=$(cat "$SCRIPT_DIR/.active_project" 2>/dev/null || echo "")
+        local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
         if [[ -n "$active" ]]; then
-            local project_dir="$SCRIPT_DIR/documents/$active"
+            local project_dir="$PROJECT_ROOT/documents/$active"
             if [[ -d "$project_dir/latex_source" ]]; then
                 print_info "Building active project: $active"
                 (cd "$project_dir" && cmd_build)
@@ -346,9 +347,9 @@ cmd_build() {
 cmd_clean() {
     if [[ ! -d "build" ]] && [[ ! -d "latex_source" ]]; then
         # Try to find active project
-        local active=$(cat "$SCRIPT_DIR/.active_project" 2>/dev/null || echo "")
+        local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
         if [[ -n "$active" ]]; then
-            local project_dir="$SCRIPT_DIR/documents/$active"
+            local project_dir="$PROJECT_ROOT/documents/$active"
             if [[ -d "$project_dir" ]]; then
                 print_info "Cleaning active project: $active"
                 (cd "$project_dir" && cmd_clean)
@@ -428,11 +429,11 @@ cmd_new() {
     echo ""
     
     # Ensure documents directory exists
-    mkdir -p "$SCRIPT_DIR/documents"
+    mkdir -p "$PROJECT_ROOT/documents"
     
     # Find next project number
     local highest=0
-    for dir in "$SCRIPT_DIR/documents"/*; do
+    for dir in "$PROJECT_ROOT/documents"/*; do
         if [[ -d "$dir" ]]; then
             local dirname=$(basename "$dir")
             if [[ "$dirname" =~ ^([0-9]{3})- ]]; then
@@ -461,7 +462,7 @@ cmd_new() {
     fi
     
     local project_id="${project_num}-${slug}"
-    local project_dir="$SCRIPT_DIR/documents/$project_id"
+    local project_dir="$PROJECT_ROOT/documents/$project_id"
     
     print_info "Project ID: $project_id"
     
@@ -550,7 +551,7 @@ EOF
 EOF
     
     # Set as active project
-    echo "$project_id" > "$SCRIPT_DIR/.active_project"
+    echo "$project_id" > "$PROJECT_ROOT/.active_project"
     
     print_success "Project created: $project_dir"
     echo ""
@@ -574,10 +575,10 @@ cmd_switch() {
         echo -e "${CYAN}Available projects:${NC}"
         echo ""
         
-        local active=$(cat "$SCRIPT_DIR/.active_project" 2>/dev/null || echo "")
+        local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
         local count=0
         
-        for dir in "$SCRIPT_DIR/documents"/*; do
+        for dir in "$PROJECT_ROOT/documents"/*; do
             if [[ -d "$dir" ]]; then
                 local dirname=$(basename "$dir")
                 if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
@@ -611,7 +612,7 @@ cmd_switch() {
     if [[ "$project_id" =~ ^[0-9]+$ ]]; then
         local padded=$(printf "%03d" "$((10#$project_id))")
         # Find project by prefix
-        for dir in "$SCRIPT_DIR/documents"/"$padded"-*; do
+        for dir in "$PROJECT_ROOT/documents"/"$padded"-*; do
             if [[ -d "$dir" ]]; then
                 project_id=$(basename "$dir")
                 break
@@ -620,11 +621,11 @@ cmd_switch() {
     fi
     
     # Validate project exists
-    if [[ ! -d "$SCRIPT_DIR/documents/$project_id" ]]; then
+    if [[ ! -d "$PROJECT_ROOT/documents/$project_id" ]]; then
         print_error "Project not found: $project_id"
         echo ""
         echo "Available projects:"
-        for dir in "$SCRIPT_DIR/documents"/*; do
+        for dir in "$PROJECT_ROOT/documents"/*; do
             if [[ -d "$dir" ]]; then
                 local dirname=$(basename "$dir")
                 if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
@@ -636,11 +637,11 @@ cmd_switch() {
     fi
     
     # Set active project
-    echo "$project_id" > "$SCRIPT_DIR/.active_project"
+    echo "$project_id" > "$PROJECT_ROOT/.active_project"
     print_success "Switched to project: $project_id"
     
     # Show project info
-    local start_file="$SCRIPT_DIR/documents/$project_id/start.md"
+    local start_file="$PROJECT_ROOT/documents/$project_id/start.md"
     if [[ -f "$start_file" ]]; then
         local title=$(head -5 "$start_file" | grep "^# " | head -1 | sed 's/^# //')
         if [[ -n "$title" ]]; then
@@ -657,10 +658,10 @@ cmd_projects() {
     echo -e "${CYAN}📁 Projects in documents/:${NC}"
     echo ""
     
-    local active=$(cat "$SCRIPT_DIR/.active_project" 2>/dev/null || echo "")
+    local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
     local count=0
     
-    for dir in "$SCRIPT_DIR/documents"/*; do
+    for dir in "$PROJECT_ROOT/documents"/*; do
         if [[ -d "$dir" ]]; then
             local dirname=$(basename "$dir")
             if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
@@ -703,7 +704,7 @@ cmd_projects() {
 
 # Command: current (show current active project)
 cmd_current() {
-    local active=$(cat "$SCRIPT_DIR/.active_project" 2>/dev/null || echo "")
+    local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
     
     if [[ -z "$active" ]]; then
         print_warning "No active project"
@@ -716,7 +717,7 @@ cmd_current() {
     
     echo -e "${CYAN}Active project:${NC} $active"
     
-    local project_dir="$SCRIPT_DIR/documents/$active"
+    local project_dir="$PROJECT_ROOT/documents/$active"
     local start_file="$project_dir/start.md"
     
     if [[ -f "$start_file" ]]; then
