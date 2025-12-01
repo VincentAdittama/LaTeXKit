@@ -79,7 +79,7 @@ get_repo_root() {
 get_active_project() {
     local repo_root=$(get_repo_root)
     local docs_dir="$repo_root/documents"
-    local active_project_file="$repo_root/.active_project"
+    local active_project_file="$repo_root/.latexkit/.active_project"
     
     # 1. Check environment variable (highest priority)
     if [[ -n "${LATEXKIT_DOCUMENT:-}" ]]; then
@@ -154,7 +154,7 @@ get_active_project() {
 set_active_project() {
     local project_id="$1"
     local repo_root=$(get_repo_root)
-    local active_project_file="$repo_root/.active_project"
+    local active_project_file="$repo_root/.latexkit/.active_project"
     local docs_dir="$repo_root/documents"
     
     if [[ -z "$project_id" ]]; then
@@ -197,14 +197,45 @@ list_projects() {
         return 0
     fi
     
+    # Function to print project line
+    print_project() {
+        local dir="$1"
+        local indent="$2"
+        local dirname=$(basename "$dir")
+        
+        if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
+            if [[ "$dirname" == "$active_project" ]]; then
+                echo "${indent}* $dirname (active)"
+            else
+                echo "${indent}  $dirname"
+            fi
+        fi
+    }
+    
+    # 1. List root projects
     for dir in "$docs_dir"/*; do
         if [[ -d "$dir" ]]; then
             local dirname=$(basename "$dir")
             if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
-                if [[ "$dirname" == "$active_project" ]]; then
-                    echo "  * $dirname (active)"
-                else
-                    echo "    $dirname"
+                print_project "$dir" "  "
+            elif [[ ! "$dirname" =~ ^\. ]]; then
+                # Possible semester folder (not hidden, not a project)
+                # Check if it contains projects
+                local has_projects=false
+                for subdir in "$dir"/*; do
+                    if [[ -d "$subdir" && "$(basename "$subdir")" =~ ^[0-9]{3}- ]]; then
+                        has_projects=true
+                        break
+                    fi
+                done
+                
+                if [[ "$has_projects" == "true" ]]; then
+                    echo "  📂 $dirname/"
+                    for subdir in "$dir"/*; do
+                        if [[ -d "$subdir" ]]; then
+                            print_project "$subdir" "    "
+                        fi
+                    done
                 fi
             fi
         fi
@@ -263,6 +294,7 @@ check_document_branch() {
 
 # Find document directory by project ID or numeric prefix
 # This function supports both full project names and numeric prefixes
+# It searches recursively in documents/ to support semester organization
 find_document_dir_by_id() {
     local repo_root="$1"
     local project_id="$2"
@@ -274,47 +306,38 @@ find_document_dir_by_id() {
         return
     fi
     
-    # First, try exact match (full project name like "001-test-essay")
-    if [[ -d "$docs_dir/$project_id" ]]; then
-        echo "$docs_dir/$project_id"
+    # Use find to search for the project directory (max depth 2 for semester/project)
+    # We look for directories matching the project_id exactly
+    local found_dir=""
+    
+    # 1. Try exact match (full project name)
+    # We search for directories with the exact name
+    found_dir=$(find "$docs_dir" -maxdepth 2 -type d -name "$project_id" -print -quit)
+    if [[ -n "$found_dir" ]]; then
+        echo "$found_dir"
         return
     fi
     
-    # If it's just a number (e.g., "001" or "1"), find by prefix
+    # 2. Try numeric prefix match
+    # If project_id is just a number (e.g. "001"), pad it
+    local search_pattern=""
     if [[ "$project_id" =~ ^[0-9]+$ ]]; then
         local padded=$(printf "%03d" "$((10#$project_id))")
-        for dir in "$docs_dir"/"$padded"-*; do
-            if [[ -d "$dir" ]]; then
-                echo "$dir"
-                return
-            fi
-        done
-        echo ""
-        return
-    fi
-
-    # Extract numeric prefix from project_id (e.g., "004" from "004-whatever")
-    if [[ "$project_id" =~ ^([0-9]{3})- ]]; then
+        search_pattern="${padded}-*"
+    elif [[ "$project_id" =~ ^([0-9]{3})- ]]; then
+        # If it already has a prefix, use it
         local prefix="${BASH_REMATCH[1]}"
-        
-        # Search for directories in documents/ that start with this prefix
-        for dir in "$docs_dir"/"$prefix"-*; do
-            if [[ -d "$dir" ]]; then
-                # Check for exact match first
-                if [[ "$(basename "$dir")" == "$project_id" ]]; then
-                    echo "$dir"
-                    return
-                fi
-            fi
-        done
-        
-        # If no exact match, return first directory with that prefix
-        for dir in "$docs_dir"/"$prefix"-*; do
-            if [[ -d "$dir" ]]; then
-                echo "$dir"
-                return
-            fi
-        done
+        search_pattern="${prefix}-*"
+    fi
+    
+    if [[ -n "$search_pattern" ]]; then
+        # Find directories matching the pattern
+        # We prioritize exact match of the prefix if multiple exist (though unlikely with unique numbers)
+        found_dir=$(find "$docs_dir" -maxdepth 2 -type d -name "$search_pattern" -print -quit)
+        if [[ -n "$found_dir" ]]; then
+            echo "$found_dir"
+            return
+        fi
     fi
     
     echo ""

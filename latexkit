@@ -268,7 +268,7 @@ cmd_list() {
 cmd_build() {
     if [[ ! -d "latex_source" ]]; then
         # Try to find active project
-        local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
+        local active=$(cat "$PROJECT_ROOT/.latexkit/.active_project" 2>/dev/null || echo "")
         if [[ -n "$active" ]]; then
             local project_dir="$PROJECT_ROOT/documents/$active"
             if [[ -d "$project_dir/latex_source" ]]; then
@@ -347,7 +347,7 @@ cmd_build() {
 cmd_clean() {
     if [[ ! -d "build" ]] && [[ ! -d "latex_source" ]]; then
         # Try to find active project
-        local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
+        local active=$(cat "$PROJECT_ROOT/.latexkit/.active_project" 2>/dev/null || echo "")
         if [[ -n "$active" ]]; then
             local project_dir="$PROJECT_ROOT/documents/$active"
             if [[ -d "$project_dir" ]]; then
@@ -382,13 +382,14 @@ cmd_commit() {
 # =================================================================
 
 # Command: new (create a new project in documents/)
-# Usage: ./latexkit new "Project Description" [--layout academic-assignment]
+# Usage: ./latexkit new "Project Description" [--layout academic-assignment] [--semester <name>]
 cmd_new() {
     print_header
     
     local description=""
     local layout="academic-assignment"
     local short_name=""
+    local semester=""
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -399,6 +400,10 @@ cmd_new() {
                 ;;
             --short-name)
                 short_name="$2"
+                shift 2
+                ;;
+            --semester)
+                semester="$2"
                 shift 2
                 ;;
             *)
@@ -412,7 +417,7 @@ cmd_new() {
     
     if [[ -z "$description" ]]; then
         print_error "Please provide a project description"
-        echo "Usage: ./latexkit new \"Your Project Description\" [--layout academic-assignment]"
+        echo "Usage: ./latexkit new \"Your Project Description\" [--layout academic-assignment] [--semester <name>]"
         exit 1
     fi
     
@@ -425,25 +430,52 @@ cmd_new() {
         exit 1
     fi
     
+    # Semester Logic
+    local last_semester_file="$PROJECT_ROOT/.latexkit/.last_semester"
+    mkdir -p "$(dirname "$last_semester_file")"
+    
+    if [[ -z "$semester" ]]; then
+        # Try to read last semester
+        if [[ -f "$last_semester_file" ]]; then
+            semester=$(cat "$last_semester_file")
+            print_info "Using last semester: $semester (use --semester to override)"
+        fi
+    else
+        # Save new semester
+        echo "$semester" > "$last_semester_file"
+    fi
+    
     echo -e "${CYAN}Creating new project: ${description}${NC}"
+    if [[ -n "$semester" ]]; then
+        echo -e "${BLUE}Semester: ${semester}${NC}"
+    fi
     echo ""
     
-    # Ensure documents directory exists
-    mkdir -p "$PROJECT_ROOT/documents"
+    # Determine documents root for this project
+    local docs_root="$PROJECT_ROOT/documents"
+    if [[ -n "$semester" ]]; then
+        docs_root="$PROJECT_ROOT/documents/$semester"
+    fi
     
-    # Find next project number
+    # Ensure documents directory exists
+    mkdir -p "$docs_root"
+    
+    # Find next project number (globally unique or per-semester? User said "sort of that thing", usually unique ID is better for finding)
+    # But if we nest, we might want unique IDs across the whole repo to avoid confusion.
+    # Let's scan ALL documents/ recursively to find the highest number to ensure global uniqueness.
+    
     local highest=0
-    for dir in "$PROJECT_ROOT/documents"/*; do
-        if [[ -d "$dir" ]]; then
-            local dirname=$(basename "$dir")
-            if [[ "$dirname" =~ ^([0-9]{3})- ]]; then
-                local number=$((10#${BASH_REMATCH[1]}))
-                if [[ "$number" -gt "$highest" ]]; then
-                    highest=$number
-                fi
+    # Use find to list all directories in documents/ (max depth 2) matching NNN-*
+    while IFS= read -r dir; do
+        local dirname=$(basename "$dir")
+        if [[ "$dirname" =~ ^([0-9]{3})- ]]; then
+            local number=$((10#${BASH_REMATCH[1]}))
+            if [[ "$number" -gt "$highest" ]]; then
+                highest=$number
             fi
         fi
-    done
+    done < <(find "$PROJECT_ROOT/documents" -maxdepth 2 -type d -name "[0-9][0-9][0-9]-*")
+    
     local next=$((highest + 1))
     local project_num=$(printf "%03d" "$next")
     
@@ -462,7 +494,7 @@ cmd_new() {
     fi
     
     local project_id="${project_num}-${slug}"
-    local project_dir="$PROJECT_ROOT/documents/$project_id"
+    local project_dir="$docs_root/$project_id"
     
     print_info "Project ID: $project_id"
     
@@ -480,12 +512,20 @@ cmd_new() {
     print_info "Copying layout template: $layout"
     cp -r "$REGISTRY_DIR/layouts/$layout/sections"/* "$project_dir/latex_source/sections/" 2>/dev/null || true
     
+    # Calculate relative path to registry
+    # Depth: documents/<semester>/<project>/latex_source -> 4 levels up
+    # Depth: documents/<project>/latex_source -> 3 levels up
+    local registry_rel_path="../../../.latexkit/registry/layouts/$layout"
+    if [[ -n "$semester" ]]; then
+        registry_rel_path="../../../../.latexkit/registry/layouts/$layout"
+    fi
+    
     # Create main.tex with template reference
     cat > "$project_dir/latex_source/main.tex" <<EOF
 %!TeX root = main.tex
 %% LATEXKIT CONFIGURATION
 %% This path points to the shared template registry.
-\\newcommand{\\latexKitPath}{../../../.latexkit/registry/layouts/$layout}
+\\newcommand{\\latexKitPath}{$registry_rel_path}
 
 $(cat "$REGISTRY_DIR/layouts/$layout/main.tex")
 EOF
@@ -501,6 +541,11 @@ EOF
 **Document ID**: \`$project_id\`  
 **Created**: \`$today\`  
 **Status**: \`Draft\`
+EOF
+    if [[ -n "$semester" ]]; then
+        echo "**Semester**: \`$semester\`" >> "$project_dir/start.md"
+    fi
+    cat >> "$project_dir/start.md" <<EOF
 
 ---
 
@@ -533,7 +578,8 @@ EOF
   "project": {
     "name": "$description",
     "layout": "$layout",
-    "language": "indonesian"
+    "language": "indonesian",
+    "semester": "$semester"
   },
   "components": [],
   "style": {
@@ -551,7 +597,7 @@ EOF
 EOF
     
     # Set as active project
-    echo "$project_id" > "$PROJECT_ROOT/.active_project"
+    echo "$project_id" > "$PROJECT_ROOT/.latexkit/.active_project"
     
     print_success "Project created: $project_dir"
     echo ""
@@ -575,27 +621,23 @@ cmd_switch() {
         echo -e "${CYAN}Available projects:${NC}"
         echo ""
         
-        local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
-        local count=0
-        
-        for dir in "$PROJECT_ROOT/documents"/*; do
-            if [[ -d "$dir" ]]; then
-                local dirname=$(basename "$dir")
-                if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
-                    count=$((count + 1))
-                    if [[ "$dirname" == "$active" ]]; then
-                        echo -e "  ${GREEN}*${NC} $dirname ${GREEN}(active)${NC}"
-                    else
-                        echo "    $dirname"
+        if declare -f list_projects >/dev/null; then
+            list_projects
+        else
+            # Fallback listing
+            local active=$(cat "$PROJECT_ROOT/.latexkit/.active_project" 2>/dev/null || echo "")
+            for dir in "$PROJECT_ROOT/documents"/*; do
+                if [[ -d "$dir" ]]; then
+                    local dirname=$(basename "$dir")
+                    if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
+                        if [[ "$dirname" == "$active" ]]; then
+                            echo -e "  ${GREEN}*${NC} $dirname ${GREEN}(active)${NC}"
+                        else
+                            echo "    $dirname"
+                        fi
                     fi
                 fi
-            fi
-        done
-        
-        if [[ "$count" -eq 0 ]]; then
-            print_warning "No projects found"
-            echo "Create one with: ./latexkit new \"Project Description\""
-            exit 0
+            done
         fi
         
         echo ""
@@ -608,45 +650,53 @@ cmd_switch() {
         fi
     fi
     
-    # Support numeric prefix (e.g., "001" or "1")
-    if [[ "$project_id" =~ ^[0-9]+$ ]]; then
-        local padded=$(printf "%03d" "$((10#$project_id))")
-        # Find project by prefix
-        for dir in "$PROJECT_ROOT/documents"/"$padded"-*; do
-            if [[ -d "$dir" ]]; then
-                project_id=$(basename "$dir")
-                break
+    # Use shared logic to find project directory
+    local project_dir=""
+    if declare -f find_document_dir_by_id >/dev/null; then
+        project_dir=$(find_document_dir_by_id "$PROJECT_ROOT" "$project_id")
+    else
+        # Fallback logic (non-recursive)
+        if [[ "$project_id" =~ ^[0-9]+$ ]]; then
+            local padded=$(printf "%03d" "$((10#$project_id))")
+            for dir in "$PROJECT_ROOT/documents"/"$padded"-*; do
+                if [[ -d "$dir" ]]; then
+                    project_dir="$dir"
+                    break
+                fi
+            done
+        else
+            if [[ -d "$PROJECT_ROOT/documents/$project_id" ]]; then
+                project_dir="$PROJECT_ROOT/documents/$project_id"
             fi
-        done
+        fi
     fi
     
     # Validate project exists
-    if [[ ! -d "$PROJECT_ROOT/documents/$project_id" ]]; then
+    if [[ -z "$project_dir" || ! -d "$project_dir" ]]; then
         print_error "Project not found: $project_id"
-        echo ""
-        echo "Available projects:"
-        for dir in "$PROJECT_ROOT/documents"/*; do
-            if [[ -d "$dir" ]]; then
-                local dirname=$(basename "$dir")
-                if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
-                    echo "  - $dirname"
-                fi
-            fi
-        done
         exit 1
     fi
     
+    # Get actual project ID from directory name
+    local real_project_id=$(basename "$project_dir")
+    
     # Set active project
-    echo "$project_id" > "$PROJECT_ROOT/.active_project"
-    print_success "Switched to project: $project_id"
+    echo "$real_project_id" > "$PROJECT_ROOT/.latexkit/.active_project"
+    print_success "Switched to project: $real_project_id"
     
     # Show project info
-    local start_file="$PROJECT_ROOT/documents/$project_id/start.md"
+    local start_file="$project_dir/start.md"
     if [[ -f "$start_file" ]]; then
         local title=$(head -5 "$start_file" | grep "^# " | head -1 | sed 's/^# //')
         if [[ -n "$title" ]]; then
             echo ""
             print_info "Project: $title"
+        fi
+        
+        # Show semester if available
+        local semester=$(grep "^\*\*Semester\*\*:" "$start_file" | cut -d'`' -f2)
+        if [[ -n "$semester" ]]; then
+            print_info "Semester: $semester"
         fi
     fi
 }
@@ -658,53 +708,35 @@ cmd_projects() {
     echo -e "${CYAN}📁 Projects in documents/:${NC}"
     echo ""
     
-    local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
-    local count=0
-    
-    for dir in "$PROJECT_ROOT/documents"/*; do
-        if [[ -d "$dir" ]]; then
-            local dirname=$(basename "$dir")
-            if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
-                count=$((count + 1))
-                local marker="  "
-                local suffix=""
-                
-                if [[ "$dirname" == "$active" ]]; then
-                    marker="${GREEN}▶${NC}"
-                    suffix="${GREEN}(active)${NC}"
-                fi
-                
-                # Try to get title from start.md
-                local start_file="$dir/start.md"
-                local title=""
-                if [[ -f "$start_file" ]]; then
-                    title=$(head -5 "$start_file" | grep "^# " | head -1 | sed 's/^# Project Start File: //')
-                fi
-                
-                echo -e "  $marker $dirname $suffix"
-                if [[ -n "$title" ]]; then
-                    echo "      └─ $title"
+    # Use shared listing logic from common.sh
+    if declare -f list_projects >/dev/null; then
+        list_projects
+    else
+        # Fallback if common.sh not sourced or function missing
+        local active=$(cat "$PROJECT_ROOT/.latexkit/.active_project" 2>/dev/null || echo "")
+        for dir in "$PROJECT_ROOT/documents"/*; do
+            if [[ -d "$dir" ]]; then
+                local dirname=$(basename "$dir")
+                if [[ "$dirname" =~ ^[0-9]{3}- ]]; then
+                    if [[ "$dirname" == "$active" ]]; then
+                        echo -e "  ${GREEN}*${NC} $dirname ${GREEN}(active)${NC}"
+                    else
+                        echo "    $dirname"
+                    fi
                 fi
             fi
-        fi
-    done
-    
-    if [[ "$count" -eq 0 ]]; then
-        print_warning "No projects found"
-        echo ""
-        echo "Create a new project:"
-        echo "  ./latexkit new \"Your Project Description\""
-    else
-        echo ""
-        echo "Commands:"
-        echo "  ./latexkit switch <num>  Switch to a project (e.g., ./latexkit switch 1)"
-        echo "  ./latexkit new \"desc\"    Create a new project"
+        done
     fi
+    
+    echo ""
+    echo "Commands:"
+    echo "  ./latexkit switch <num>  Switch to a project (e.g., ./latexkit switch 1)"
+    echo "  ./latexkit new \"desc\"    Create a new project"
 }
 
 # Command: current (show current active project)
 cmd_current() {
-    local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
+    local active=$(cat "$PROJECT_ROOT/.latexkit/.active_project" 2>/dev/null || echo "")
     
     if [[ -z "$active" ]]; then
         print_warning "No active project"
@@ -803,10 +835,54 @@ cmd_reset() {
                 exit 0
             fi
             
-            # Delete project folder
-            print_info "Deleting project: $project_dir"
-            rm -rf "$project_dir"
-            print_success "Project folder deleted"
+            # Execute reset
+            if [[ -f "$project_dir/start.md" ]]; then
+                print_info "Resetting project..."
+                
+                # Backup start.md and config
+                cp "$project_dir/start.md" "$project_dir/start.md.bak"
+                cp "$project_dir/latexkit.config.json" "$project_dir/latexkit.config.json.bak"
+                
+                # Nuke
+                rm -rf "$project_dir"/*
+                
+                # Restore
+                mv "$project_dir/start.md.bak" "$project_dir/start.md"
+                mv "$project_dir/latexkit.config.json.bak" "$project_dir/latexkit.config.json"
+                
+                # Re-create structure
+                mkdir -p "$project_dir"/{checklists,latex_source/{sections,images},build,assignment_info,zotero_export}
+                mkdir -p "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}
+                
+                # Add .gitkeep
+                for dir in "$project_dir"/build "$project_dir"/assignment_info "$project_dir"/zotero_export \
+                           "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}; do
+                    touch "$dir/.gitkeep"
+                done
+                
+                # Get layout from config
+                local layout=$(grep -o '"layout": "[^"]*"' "$project_dir/latexkit.config.json" | cut -d'"' -f4)
+                if [[ -z "$layout" ]]; then layout="academic-assignment"; fi
+                
+                # Copy layout
+                print_info "Restoring layout: $layout"
+                cp -r "$REGISTRY_DIR/layouts/$layout/sections"/* "$project_dir/latex_source/sections/" 2>/dev/null || true
+                
+                # Restore main.tex
+                cat > "$project_dir/latex_source/main.tex" <<EOF
+%!TeX root = main.tex
+%% LATEXKIT CONFIGURATION
+%% This path points to the shared template registry.
+\newcommand{\latexKitPath}{../../../.latexkit/registry/layouts/$layout}
+
+$(cat "$REGISTRY_DIR/layouts/$layout/main.tex")
+EOF
+                sed -i '' 's|\input{preamble.tex}|\input{\latexKitPath/preamble.tex}|g' "$project_dir/latex_source/main.tex"
+                
+                print_success "Project reset successfully!"
+            else
+                print_error "start.md not found, cannot safely reset."
+            fi
             
             # Commit the reset
             print_info "Creating RESET commit..."
@@ -1003,6 +1079,17 @@ EOF
 }
 
 # Command: help
+# Command: prompt (generate context prompt)
+cmd_prompt() {
+    local script="$SCRIPT_DIR/.latexkit/scripts/bash/gen-prompt.sh"
+    if [[ ! -x "$script" ]]; then
+        print_error "Prompt generator script not found or not executable!"
+        print_info "Expected: $script"
+        exit 1
+    fi
+    "$script" "$@"
+}
+
 cmd_help() {
     print_header
     echo "Usage: ./latexkit <command> [options]"
@@ -1084,6 +1171,10 @@ main() {
         commit)
             shift
             cmd_commit "$@"
+            ;;
+        prompt|gen)
+            shift
+            cmd_prompt "$@"
             ;;
         reset)
             cmd_reset
