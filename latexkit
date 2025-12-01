@@ -4,7 +4,7 @@
 #
 # MAIN-ONLY WORKFLOW:
 # This CLI supports trunk-based development (all work on main branch).
-# Projects are managed via `documents/` folder and `.active_project` file.
+# Projects are managed via `documents/` folder and `.latexkit-workspace` state file.
 
 set -e
 
@@ -293,7 +293,8 @@ cmd_list() {
 cmd_build() {
     if [[ ! -d "latex_source" ]]; then
         # Try to find active project
-        local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
+        # Try to find active project
+        local active=$(get_active_project)
         if [[ -n "$active" ]]; then
             local project_dir="$PROJECT_ROOT/documents/$active"
             if [[ -d "$project_dir/latex_source" ]]; then
@@ -372,7 +373,8 @@ cmd_build() {
 cmd_clean() {
     if [[ ! -d "build" ]] && [[ ! -d "latex_source" ]]; then
         # Try to find active project
-        local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
+        # Try to find active project
+        local active=$(get_active_project)
         if [[ -n "$active" ]]; then
             local project_dir="$PROJECT_ROOT/documents/$active"
             if [[ -d "$project_dir" ]]; then
@@ -456,18 +458,16 @@ cmd_new() {
     fi
     
     # Semester Logic
-    local last_semester_file="$PROJECT_ROOT/.last_semester"
-    mkdir -p "$(dirname "$last_semester_file")"
     
     if [[ -z "$semester" ]]; then
         # Try to read last semester
-        if [[ -f "$last_semester_file" ]]; then
-            semester=$(cat "$last_semester_file")
+        semester=$(get_workspace_state "LAST_SEMESTER")
+        if [[ -n "$semester" ]]; then
             print_info "Using last semester: $semester (use --semester to override)"
         fi
     else
         # Save new semester
-        echo "$semester" > "$last_semester_file"
+        set_workspace_state "LAST_SEMESTER" "$semester"
     fi
     
     echo -e "${CYAN}Creating new project: ${description}${NC}"
@@ -605,7 +605,8 @@ EOF
 EOF
     
     # Set as active project
-    echo "$project_id" > "$PROJECT_ROOT/.active_project"
+    # Set as active project
+    set_workspace_state "ACTIVE_PROJECT" "$project_id"
     
     print_success "Project created: $project_dir"
     echo ""
@@ -633,7 +634,7 @@ cmd_switch() {
             list_projects
         else
             # Fallback listing
-            local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
+            local active=$(get_active_project)
             for dir in "$PROJECT_ROOT/documents"/*; do
                 if [[ -d "$dir" ]]; then
                     local dirname=$(basename "$dir")
@@ -689,7 +690,8 @@ cmd_switch() {
     local real_project_id=$(basename "$project_dir")
     
     # Set active project
-    echo "$real_project_id" > "$PROJECT_ROOT/.active_project"
+    # Set active project
+    set_workspace_state "ACTIVE_PROJECT" "$real_project_id"
     print_success "Switched to project: $real_project_id"
     
     # Show project info
@@ -721,7 +723,7 @@ cmd_projects() {
         list_projects
     else
         # Fallback if common.sh not sourced or function missing
-        local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
+        local active=$(get_active_project)
         for dir in "$PROJECT_ROOT/documents"/*; do
             if [[ -d "$dir" ]]; then
                 local dirname=$(basename "$dir")
@@ -744,7 +746,7 @@ cmd_projects() {
 
 # Command: current (show current active project)
 cmd_current() {
-    local active=$(cat "$PROJECT_ROOT/.active_project" 2>/dev/null || echo "")
+    local active=$(get_active_project)
     
     if [[ -z "$active" ]]; then
         print_warning "No active project"
@@ -757,7 +759,15 @@ cmd_current() {
     
     echo -e "${CYAN}Active project:${NC} $active"
     
-    local project_dir="$PROJECT_ROOT/documents/$active"
+    local project_dir=""
+    if declare -f find_document_dir_by_id >/dev/null; then
+        project_dir=$(find_document_dir_by_id "$PROJECT_ROOT" "$active")
+    fi
+    
+    if [[ -z "$project_dir" ]]; then
+        # Fallback
+        project_dir="$PROJECT_ROOT/documents/$active"
+    fi
     local start_file="$project_dir/start.md"
     
     if [[ -f "$start_file" ]]; then

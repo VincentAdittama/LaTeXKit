@@ -74,6 +74,59 @@ get_repo_root() {
 }
 
 # =================================================================
+# WORKSPACE STATE MANAGEMENT
+# =================================================================
+
+# Get a value from the workspace state file
+# Usage: get_workspace_state "KEY"
+get_workspace_state() {
+    local key="$1"
+    local repo_root=$(get_repo_root)
+    local state_file="$repo_root/.latexkit-workspace"
+    
+    if [[ -f "$state_file" ]]; then
+        # Use grep and cut to extract value safely without sourcing
+        # Handles KEY="VALUE" or KEY=VALUE
+        local line=$(grep "^${key}=" "$state_file" | head -n 1)
+        if [[ -n "$line" ]]; then
+            # Extract value after first =
+            local value="${line#*=}"
+            # Remove surrounding quotes if present
+            value="${value%\"}"
+            value="${value#\"}"
+            echo "$value"
+        fi
+    fi
+}
+
+# Set a value in the workspace state file
+# Usage: set_workspace_state "KEY" "VALUE"
+set_workspace_state() {
+    local key="$1"
+    local value="$2"
+    local repo_root=$(get_repo_root)
+    local state_file="$repo_root/.latexkit-workspace"
+    
+    # Create file if it doesn't exist
+    if [[ ! -f "$state_file" ]]; then
+        touch "$state_file"
+    fi
+    
+    # Check if key exists
+    if grep -q "^${key}=" "$state_file"; then
+        # Update existing key using a temporary file
+        local temp_file=$(mktemp)
+        # Escape value for sed (basic escaping for double quotes)
+        local escaped_value=$(echo "$value" | sed 's/"/\\"/g')
+        sed "s|^${key}=.*|${key}=\"${escaped_value}\"|" "$state_file" > "$temp_file"
+        mv "$temp_file" "$state_file"
+    else
+        # Append new key
+        echo "${key}=\"$value\"" >> "$state_file"
+    fi
+}
+
+# =================================================================
 # MAIN-ONLY WORKFLOW: Project Detection
 # =================================================================
 # This system uses file-based project detection instead of git branches.
@@ -98,17 +151,20 @@ get_active_project() {
         return
     fi
     
-    # 2. Check .active_project file
-    if [[ -f "$active_project_file" ]]; then
-        local project_id=$(cat "$active_project_file" | tr -d '[:space:]')
+    # 2. Check workspace state
+    local active_from_state=$(get_workspace_state "ACTIVE_PROJECT")
+    if [[ -n "$active_from_state" ]]; then
+        local project_id=$(echo "$active_from_state" | tr -d '[:space:]')
         # Validate the project exists
         if [[ -n "$project_id" ]]; then
-            if [[ -d "$docs_dir/$project_id" ]]; then
+            # Validate the project exists (search recursively for semester support)
+            local found_dir=$(find "$docs_dir" -maxdepth 2 -type d -name "$project_id" -print -quit)
+            if [[ -n "$found_dir" ]]; then
                 echo "$project_id"
                 return
             else
-                # Stale active project file - clear it
-                rm -f "$active_project_file"
+                # Stale active project - clear it
+                set_workspace_state "ACTIVE_PROJECT" ""
             fi
         fi
     fi
@@ -191,8 +247,8 @@ set_active_project() {
         return 1
     fi
     
-    # Write to .active_project
-    echo "$project_id" > "$active_project_file"
+    # Write to workspace state
+    set_workspace_state "ACTIVE_PROJECT" "$project_id"
     success "Active project set to: $project_id"
     return 0
 }
@@ -563,7 +619,7 @@ validate_document_type() {
 
 # Export functions for use in subshells (silent)
 export -f log success warn error command_exists validate_file validate_dir ensure_dir validate_project_structure >/dev/null 2>&1
-export -f get_repo_root get_active_project set_active_project list_projects get_current_branch has_git >/dev/null 2>&1
+export -f get_repo_root get_active_project set_active_project list_projects get_current_branch has_git get_workspace_state set_workspace_state >/dev/null 2>&1
 export -f find_document_dir_by_id find_document_dir_by_prefix get_document_paths >/dev/null 2>&1
 
 # ---------------------------------------------------------------
