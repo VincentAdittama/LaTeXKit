@@ -872,9 +872,8 @@ cmd_reset() {
         fi
         
         echo -e "${YELLOW}This will:${NC}"
-        echo "  • Delete all content in: $project_dir"
-        echo "  • Restore layout from template"
-        echo "  • PRESERVE: start.md and latexkit.config.json"
+        echo "  • COMPLETELY DELETE the project folder: $project_dir"
+        echo "  • Revert .latexkit-workspace to last commit (if changed)"
         echo ""
         echo -e "${RED}This action CANNOT be undone!${NC}"
         echo ""
@@ -887,76 +886,21 @@ cmd_reset() {
         fi
         
         # Execute reset
-        if [[ -f "$project_dir/start.md" ]]; then
-            print_info "Resetting project..."
-            
-            # Backup start.md and config
-            cp "$project_dir/start.md" "$project_dir/start.md.bak"
-            if [[ -f "$project_dir/latexkit.config.json" ]]; then
-                cp "$project_dir/latexkit.config.json" "$project_dir/latexkit.config.json.bak"
+        print_info "Removing project directory..."
+        rm -rf "$project_dir"
+        
+        # Revert workspace state if modified
+        local workspace_file="$PROJECT_ROOT/.latexkit-workspace"
+        if [[ -f "$workspace_file" ]]; then
+            if git -C "$PROJECT_ROOT" diff --quiet "$workspace_file"; then
+                print_info ".latexkit-workspace is clean, no revert needed."
+            else
+                print_info "Reverting .latexkit-workspace to last commit..."
+                git -C "$PROJECT_ROOT" checkout "$workspace_file" 2>/dev/null || git -C "$PROJECT_ROOT" restore "$workspace_file" 2>/dev/null || print_warning "Failed to revert workspace file (git might not be initialized or file is new)"
             fi
-            
-            # Nuke
-            rm -rf "$project_dir"/*
-            
-            # Restore
-            mv "$project_dir/start.md.bak" "$project_dir/start.md"
-            if [[ -f "$project_dir/latexkit.config.json.bak" ]]; then
-                mv "$project_dir/latexkit.config.json.bak" "$project_dir/latexkit.config.json"
-            fi
-            
-            # Re-create structure
-            mkdir -p "$project_dir"/{checklists,latex_source/{sections,images},build,assignment_info,zotero_export}
-            mkdir -p "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}
-            
-            # Add .gitkeep
-            for dir in "$project_dir"/build "$project_dir"/assignment_info "$project_dir"/zotero_export \
-                       "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}; do
-                touch "$dir/.gitkeep"
-            done
-            
-            # Get layout from config
-            local layout="academic-assignment"
-            if [[ -f "$project_dir/latexkit.config.json" ]]; then
-                layout=$(grep -o '"layout": "[^"]*"' "$project_dir/latexkit.config.json" | cut -d'"' -f4)
-            fi
-            if [[ -z "$layout" ]]; then layout="academic-assignment"; fi
-            
-            # Copy layout
-            print_info "Restoring layout: $layout"
-            cp -r "$REGISTRY_DIR/layouts/$layout/sections"/* "$project_dir/latex_source/sections/" 2>/dev/null || true
-            
-            # Calculate relative path to registry
-            # We need to determine depth.
-            # documents/project -> 3 levels
-            # documents/semester/project -> 4 levels
-            
-            # Simple check: count slashes in relative path from doc root
-            local rel_path="${project_dir#$PROJECT_ROOT/documents/}"
-            local depth=$(echo "$rel_path" | tr -cd '/' | wc -c)
-            # depth 0 = project (documents/project) -> need ../../../
-            # depth 1 = semester/project (documents/semester/project) -> need ../../../../
-            
-            local registry_rel_path="../../../.latexkit/registry/layouts/$layout"
-            if [[ "$depth" -ge 1 ]]; then
-                registry_rel_path="../../../../.latexkit/registry/layouts/$layout"
-            fi
-            
-            # Restore main.tex
-            cat > "$project_dir/latex_source/main.tex" <<EOF
-%!TeX root = main.tex
-%% LATEXKIT CONFIGURATION
-%% This path points to the shared template registry.
-\newcommand{\latexKitPath}{$registry_rel_path}
-
-$(cat "$REGISTRY_DIR/layouts/$layout/main.tex")
-EOF
-            sed -i '' 's|\input{preamble.tex}|\input{\latexKitPath/preamble.tex}|g' "$project_dir/latex_source/main.tex"
-            
-            print_success "Project reset successfully!"
-        else
-            print_error "start.md not found, cannot safely reset. (Manual deletion recommended if corrupted)"
         fi
+        
+        print_success "Project '$active' removed and workspace reset."
         
     elif [[ "$scope_choice" == "2" ]]; then
         # Reset all projects
