@@ -555,7 +555,7 @@ cmd_new() {
     mkdir -p "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}
     
     # Add .gitkeep files to preserve empty directories
-    for dir in "$project_dir"/build "$project_dir"/assignment_info "$project_dir"/zotero_export \
+    for dir in "$project_dir"/build "$project_dir"/assignment_info "$project_dir"/zotero_export "$project_dir"/checklists \
                "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}; do
         touch "$dir/.gitkeep"
     done
@@ -563,6 +563,10 @@ cmd_new() {
     # Copy layout template files
     print_info "Copying layout template: $layout"
     cp -r "$REGISTRY_DIR/layouts/$layout/sections"/* "$project_dir/latex_source/sections/" 2>/dev/null || true
+    
+    # Copy latexmkrc configuration
+    print_info "Copying latexmkrc..."
+    cp "$SCRIPT_DIR/templates/latexmkrc" "$project_dir/latex_source/.latexmkrc"
     
     # Calculate relative path to registry
     # Depth: documents/<semester>/<project>/latex_source -> 4 levels up

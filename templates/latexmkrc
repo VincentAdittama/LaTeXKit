@@ -1,16 +1,21 @@
-# Project-local latexmk configuration: force XeLaTeX and biber for biblatex
-# Use XeLaTeX because this document loads fontspec and uses XeTeX primitives.
+# latexmk configuration for XeLaTeX + Biber
+# --------------------------------------------------------------------
 
-$pdf_mode = 1; # produce PDF
-
-# Use xelatex in place of pdflatex
+# Use xelatex instead of pdflatex for modern font support.
 $pdflatex = 'xelatex -interaction=nonstopmode -synctex=1 %O %S';
+$xelatex = $pdflatex; # Ensure -pdf uses xelatex implicitly
 
-# Use biber for biblatex backend
-$bibtex = 'biber %O %S';
+# Use biber for the biblatex backend.
+$bibtex_use = 2;
+# Tell biber to look for the .bcf file in the output directory.
+# The %D placeholder is automatically replaced by the value of $out_dir.
+$biber = 'biber --input-directory=%D %O %B';
 
-# Place auxiliary and output files in the build/ directory (latexmk -outdir support)
+# Place all build artifact files into the /build directory (relative to latex_source).
 $out_dir = '../build';
 
-# Keep warnings about missing files visible
-$silent = 0;
+# Always produce a PDF file.
+$pdf_mode = 1;
+
+# Clean up more thoroughly.
+$clean_ext = "%R.ps %R.dvi %R.lof %R.lot %R.fls %R.blg %R.bbl %R.log %R.bcf %R.run.xml";
