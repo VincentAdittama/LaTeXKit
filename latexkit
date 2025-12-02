@@ -122,10 +122,18 @@ print_warning() {
     echo -e "${YELLOW}⚠${NC} $1"
 }
 
-# Command: start (formerly init)
-cmd_start() {
+# Command: init (formerly start)
+cmd_init() {
     print_header
     
+    # Safety Check: Prevent running in Super Repo Root
+    if [[ -f "latexkit" ]] && [[ -d ".latexkit" ]] && [[ -d "documents" ]]; then
+        print_error "You are in the Super Repo Root!"
+        print_info "You should not initialize a project here."
+        print_info "Navigate to a project folder or create a new one with './latexkit new'"
+        exit 1
+    fi
+
     local layout="academic-assignment"
     
     # Parse arguments
@@ -152,8 +160,8 @@ cmd_start() {
     
     # Check if already started
     if [[ -d "latex_source" ]]; then
-        print_warning "Project already started!"
-        read -p "Do you want to restart? (y/N): " -n 1 -r
+        print_warning "Project already initialized!"
+        read -p "Do you want to re-initialize? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             exit 0
@@ -161,7 +169,7 @@ cmd_start() {
         rm -rf latex_source
     fi
     
-    echo -e "${CYAN}Starting LaTeXKit project with layout: ${layout}${NC}"
+    echo -e "${CYAN}Initializing LaTeXKit project with layout: ${layout}${NC}"
     echo ""
     
     # Create project structure
@@ -172,51 +180,37 @@ cmd_start() {
     cp -r "$REGISTRY_DIR/layouts/$layout/sections" latex_source/
     
     # 2. Create a special main.tex that references the registry
-    # We calculate the relative path from latex_source/ to the registry.
-    # Standard structure assumption: <repo>/documents/<branch>/latex_source
-    # And registry location: <repo>/registry
-    # So we typically need to traverse up: ../../../registry
-    
-    # However, for the "Private Wrapper" strategy, the path might differ.
-    # We use a placeholder that defaults to the local registry for now,
-    # but this design allows it to be easily changed or symlinked later.
-    
     print_info "Creating main.tex with template references..."
     
     # Read the original main.tex from the registry
     local original_main="$REGISTRY_DIR/layouts/$layout/main.tex"
     
     # Create the new main.tex
-    # We inject the \newcommand{\latexKitPath} at the very top.
-    # This is the magic that allows us to keep templates centralized.
     echo "%!TeX root = main.tex" > latex_source/main.tex
     echo "%% LATEXKIT CONFIGURATION" >> latex_source/main.tex
     echo "%% This path points to the shared template registry." >> latex_source/main.tex
-    echo "%% In a Private Wrapper setup, this should point to your submodule." >> latex_source/main.tex
     
     # Default path logic: assumes we are in the same repo (monorepo style for now)
-    # ../../../registry -> from latex_source -> document_dir -> documents -> root -> registry
-    # Wait, if the user runs ./latexkit start, they are at the root.
-    # latex_source is created at root/latex_source.
-    # So the path to registry is simply ../registry
+    # We need to calculate relative path from here to registry
+    # This is tricky because we don't know depth.
+    # For now, we assume standard depth or rely on user to fix if custom.
+    # Actually, let's try to be smart.
+    local rel_path=""
+    if command -v python3 &>/dev/null; then
+        rel_path=$(python3 -c "import os.path; print(os.path.relpath('$REGISTRY_DIR/layouts/$layout', '$(pwd)/latex_source'))")
+    else
+        # Fallback if python is not available (unlikely on macOS)
+        # We just assume a standard depth of 3 levels up if we can't calculate it
+        rel_path="../../../.latexkit/registry/layouts/$layout"
+    fi
     
-    echo "\newcommand{\latexKitPath}{../.latexkit/registry/layouts/$layout}" >> latex_source/main.tex
+    echo "\newcommand{\latexKitPath}{$rel_path}" >> latex_source/main.tex
     echo "" >> latex_source/main.tex
     
-    # Append the rest of the original main.tex, but replace \input{preamble.tex} with \input{\latexKitPath/preamble.tex}
-    # and remove the \documentclass line if we want to prepend it? No, keep it standard.
-    
-    # Actually, let's just copy the file and use sed to patch it.
     cat "$original_main" >> latex_source/main.tex
     
     # Patch the inputs to use \latexKitPath
-    # We need to be careful not to break local inputs like sections/
-    
-    # 1. Fix preamble input
     sed -i '' 's|\\input{preamble.tex}|\\input{\\latexKitPath/preamble.tex}|g' latex_source/main.tex
-    
-    # 2. Fix component inputs if any are pre-included (usually not in main.tex but good to be safe)
-    # sed -i '' 's|\\input{components/|\\input{\\latexKitPath/../../components/|g' latex_source/main.tex
     
     # Create config file
     print_info "Creating configuration file..."
@@ -242,12 +236,128 @@ cmd_start() {
 }
 EOF
     
-    print_success "Project started successfully (Reference Mode)!"
+    print_success "Project initialized successfully!"
     echo ""
     echo "Next steps:"
     echo "  1. Edit latex_source/sections/*.tex with your content"
-    echo "  2. Add components: ./latexkit add <component>"
-    echo "  3. Build your document: ./latexkit build"
+    echo "  2. Generate an AI Prompt to start working: ./latexkit start"
+}
+
+# Command: start (Generate AI Prompt)
+cmd_start() {
+    print_header
+    
+    # Check if we are in a project
+    if [[ ! -f "latexkit.config.json" ]]; then
+        # Try to find active project
+        local active=$(get_active_project)
+        if [[ -n "$active" ]]; then
+             local project_dir=""
+            if declare -f find_document_dir_by_id >/dev/null; then
+                project_dir=$(find_document_dir_by_id "$PROJECT_ROOT" "$active")
+            else
+                project_dir="$PROJECT_ROOT/documents/$active"
+            fi
+            
+            if [[ -n "$project_dir" && -d "$project_dir" ]]; then
+                print_info "Switching context to active project: $active"
+                (cd "$project_dir" && cmd_start)
+                return $?
+            fi
+        fi
+        
+        print_error "No project found in current directory and no active project set."
+        print_info "Run this command inside a project folder."
+        exit 1
+    fi
+    
+    echo -e "${CYAN}Generating AI Agent Prompt...${NC}"
+    echo ""
+    
+    local project_name="Untitled Project"
+    if command -v jq &> /dev/null; then
+        project_name=$(jq -r '.project.name // "Untitled Project"' latexkit.config.json)
+    fi
+    
+    local start_content=""
+    if [[ -f "start.md" ]]; then
+        start_content=$(cat "start.md")
+    else
+        start_content="(No start.md found)"
+    fi
+    
+    local config_content=$(cat latexkit.config.json)
+    
+    # Scan assignment_info for context files
+    local context_files_list=""
+    if [[ -d "assignment_info" ]]; then
+        context_files_list=$(find assignment_info -type f -not -name '.gitkeep' | sed 's/^/   - /')
+    fi
+    if [[ -z "$context_files_list" ]]; then
+        context_files_list="   (No context files found in assignment_info)"
+    fi
+
+    # Construct the prompt
+    local prompt_file=$(mktemp)
+    
+    cat > "$prompt_file" <<EOF
+You are an AI assistant helping with a LaTeX project.
+
+# Project Context
+**Project Name**: $project_name
+**Path**: $(pwd)
+
+## Configuration (latexkit.config.json)
+\`\`\`json
+$config_content
+\`\`\`
+
+## Project Brief (start.md)
+\`\`\`markdown
+$start_content
+\`\`\`
+
+## Assignment Context (assignment_info)
+The following files contain the assignment details, rubrics, and reference materials. 
+**CRITICAL**: You must read these files to understand the requirements.
+$context_files_list
+
+## Directory Structure
+\`\`\`
+$(ls -R | grep ":$" | head -n 20 | sed 's/:$//' | sed 's/[^-][^\/]*\//--/g' | sed 's/^/   /' | sed 's/-/|/')
+(truncated)
+\`\`\`
+
+# Task
+I am ready to start working on this assignment. 
+Please review the 'Project Brief', 'Configuration', and the files listed in 'Assignment Context'.
+
+**Your Goal**: Help me execute this assignment accurately and efficiently.
+
+**Step 1: Analysis & Clarification**
+1.  **Read Context**: Analyze the files in \`assignment_info\` to understand the exact requirements and grading criteria.
+2.  **Cross-Check**: Compare the requirements against the current project state.
+3.  **Clarify**: If any information is missing, ambiguous, or if you need specific instructions (e.g., "What is the deadline?", "What is the target length?"), ASK ME NOW. Do not make assumptions.
+
+**Step 2: Execution Plan**
+Once we are aligned, propose a logical next step (e.g., creating an outline, drafting a specific section, or setting up the bibliography).
+
+If you need to run commands, use the \`./latexkit\` CLI.
+EOF
+
+    # Output to user
+    echo -e "${YELLOW}--- COPY THE PROMPT BELOW ---${NC}"
+    cat "$prompt_file"
+    echo -e "${YELLOW}-----------------------------${NC}"
+    
+    # Optional: Copy to clipboard (macOS only)
+    if command -v pbcopy &> /dev/null; then
+        cat "$prompt_file" | pbcopy
+        echo ""
+        print_success "Prompt copied to clipboard!"
+    fi
+    
+    rm "$prompt_file"
 }
 
 # Command: add
@@ -692,7 +802,7 @@ EOF
     echo ""
     echo "Next steps:"
     echo "  1. Edit $project_dir/start.md with project details"
-    echo "  2. Run /latexkit.start in Copilot Chat to complete setup"
+    echo "  2. Run './latexkit start' to generate an AI Agent Prompt"
     echo "  3. Or use ./latexkit build to compile"
     echo ""
     echo "Switch projects anytime with: ./latexkit switch $project_id"
@@ -1015,64 +1125,72 @@ main() {
         exit 0
     fi
     
-    case "$1" in
-        # Main-Only Workflow Commands
-        new)
+    case $1 in
+        init)
             shift
-            cmd_new "$@"
+            cmd_init "$@"
             ;;
-        switch)
-            shift
-            cmd_switch "$@"
-            ;;
-        projects|proj|ls)
-            cmd_projects
-            ;;
-        current|status)
-            cmd_current
-            ;;
-        # Legacy/Template Commands
         start)
             shift
             cmd_start "$@"
             ;;
-        init)
-            # Keep init as alias for backwards compatibility
-            print_warning "Command 'init' is deprecated. Use 'start' instead."
+        new)
             shift
-            cmd_start "$@"
+            cmd_new "$@"
             ;;
         add)
             shift
             cmd_add "$@"
             ;;
         list)
-            cmd_list
+            shift
+            cmd_list "$@"
             ;;
         build)
-            cmd_build
+            shift
+            cmd_build "$@"
             ;;
         clean)
-            cmd_clean
+            shift
+            cmd_clean "$@"
             ;;
         commit)
             shift
             cmd_commit "$@"
             ;;
-        prompt|gen)
+        switch)
             shift
-            cmd_prompt "$@"
+            cmd_switch "$@"
+            ;;
+        projects)
+            shift
+            cmd_projects "$@"
             ;;
         reset)
-            cmd_reset
+            shift
+            cmd_reset "$@"
             ;;
         help|--help|-h)
-            cmd_help
+            print_header
+            echo "Usage: ./latexkit <command> [options]"
+            echo ""
+            echo "Commands:"
+            echo "  new      Create a new project in documents/"
+            echo "  start    Generate an AI Agent Prompt for the current project"
+            echo "  init     Initialize the current folder as a LaTeXKit project"
+            echo "  switch   Switch active project context"
+            echo "  projects List all projects"
+            echo "  add      Add a component to the current project"
+            echo "  list     List available layouts and components"
+            echo "  build    Build the current project"
+            echo "  clean    Clean build artifacts"
+            echo "  commit   Smart commit with conventional messages"
+            echo "  reset    Reset project state (dangerous)"
+            echo ""
             ;;
         *)
             print_error "Unknown command: $1"
-            echo ""
-            cmd_help
+            echo "Run './latexkit help' for usage"
             exit 1
             ;;
     esac
