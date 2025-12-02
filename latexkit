@@ -990,7 +990,7 @@ EOF
 # Command: help
 # Command: prompt (generate context prompt)
 cmd_prompt() {
-    local script="$SCRIPT_DIR/.latexkit/scripts/bash/gen-prompt.sh"
+    local script="$SCRIPT_DIR/scripts/bash/gen-prompt.sh"
     if [[ ! -x "$script" ]]; then
         print_error "Prompt generator script not found or not executable!"
         print_info "Expected: $script"

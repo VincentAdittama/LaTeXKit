@@ -137,4 +137,4 @@ The system handles Unicode and transliterates to ASCII automatically. For better
 
 - [Common Utilities](../scripts/bash/common.sh)
 - [Document Creation](../scripts/bash/create-new-document.sh)
-- [Workflow Guide](../../README.md)
+
