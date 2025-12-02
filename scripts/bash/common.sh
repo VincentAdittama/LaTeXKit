@@ -46,16 +46,20 @@ command_exists() {
 }
 
 # Get repository root, with fallback for non-git repositories
+# This function is the cornerstone of the "Super Repo vs Standalone" architecture.
+# It ensures we always operate on the correct set of files, regardless of how we are nested.
 get_repo_root() {
-    # Jika variabel global sudah di-set oleh script utama, pakai itu (Paling Efisien)
+    # If the global variable is already set by the main script, use it (Most Efficient).
+    # This avoids repeated expensive git calls.
     if [[ -n "${LATEXKIT_PROJECT_ROOT:-}" ]]; then
         echo "$LATEXKIT_PROJECT_ROOT"
         return
     fi
 
-    # Jika script dipanggil langsung (bukan via CLI utama), lakukan deteksi ulang:
+    # If the script is called directly (not via the main CLI), we need to re-detect:
     
-    # 1. Cek Superproject (Submodule Case)
+    # 1. Check Superproject (Submodule Case)
+    # This handles the case where we are a submodule inside a larger repo.
     local super_root
     super_root=$(git rev-parse --show-superproject-working-tree 2>/dev/null)
     if [[ -n "$super_root" ]]; then
@@ -63,11 +67,13 @@ get_repo_root() {
         return
     fi
     
-    # 2. Cek Current Repo Root (Standalone Case)
+    # 2. Check Current Repo Root (Standalone Case)
+    # Standard git repo detection.
     if git rev-parse --show-toplevel >/dev/null 2>&1; then
         git rev-parse --show-toplevel
     else
         # Fall back to script location for non-git repos
+        # This is a last resort for bare folder usage.
         local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
         (cd "$script_dir/../../.." && pwd)
     fi

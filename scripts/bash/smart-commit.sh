@@ -364,11 +364,11 @@ categorize_changes() {
 
 # Main execution
 main() {
-    # 1. Tentukan Root yang benar (Super Repo atau Standalone)
+    # 1. Determine the Correct Root (Super Repo or Standalone)
     local repo_root=$(get_repo_root)
     
-    # 2. Pindah ke Root tersebut
-    # Ini krusial agar git status/add/commit berjalan di konteks Super Repo
+    # 2. Switch to that Root
+    # This is crucial so that git status/add/commit commands run in the context of the Super Repo.
     cd "$repo_root" || {
         error "Could not change directory to $repo_root"
         exit 1

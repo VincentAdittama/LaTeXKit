@@ -8,26 +8,53 @@
 
 set -e
 
+# =================================================================
+# ARCHITECTURE OVERVIEW: SUPER REPO VS STANDALONE
+# =================================================================
+# This script is designed to work in two distinct architectural contexts:
+#
+# 1. STANDALONE MODE (Repo A)
+#    - The standard usage where you clone this repo and use it directly.
+#    - The "Project Root" is simply the root of this git repository.
+#    - Documents live in `documents/` relative to this script.
+#
+# 2. SUBMODULE MODE (Repo B / Super Repo)
+#    - The advanced usage where this repo is a submodule inside a larger "Super Repo".
+#    - The "Project Root" is the root of the Super Repo (Repo B), NOT this submodule.
+#    - This allows you to have a private "Work Repo" that pulls in this public "Template Repo".
+#    - We detect this mode automatically via git or explicit environment variables.
+#
+# Why this matters:
+# - All git operations (commits, diffs) must run from the Project Root.
+# - Path resolution for `documents/` must be relative to the Project Root.
+# =================================================================
+
 VERSION="1.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# DETEKSI MODE OPERASI (The Smart Logic)
+# OPERATION MODE DETECTION (The Smart Logic)
 # -----------------------------------------------------------
+# This section determines how the script is being run and sets the project root accordingly.
+# It's crucial for supporting both standalone usage and submodule integration.
 
-# Cek 1: Apakah ada Environment Variable dari Wrapper? (Explicit override)
+# Check 1: Is there an Environment Variable from a Wrapper? (Explicit override)
+# If a parent script (like a wrapper in a Super Repo) sets this, we trust it blindly.
 if [[ -n "${LATEXKIT_SUPER_REPO_ROOT:-}" ]]; then
     PROJECT_ROOT="$LATEXKIT_SUPER_REPO_ROOT"
     MODE="Submodule (Wrapper)"
 
-# Cek 2: Apakah saya berada di dalam Git Superproject? (Native Git check)
-# Perintah ini akan return path ke Repo B jika script ini ada di dalam submodule
+# Check 2: Am I inside a Git Superproject? (Native Git check)
+# This command returns the path to the Super Repo (Repo B) if this script is running inside a submodule.
+# It's a robust way to detect if we are just a component in a larger system.
 elif SUPER_ROOT=$(git -C "$SCRIPT_DIR" rev-parse --show-superproject-working-tree 2>/dev/null) && [[ -n "$SUPER_ROOT" ]]; then
     PROJECT_ROOT="$SUPER_ROOT"
     MODE="Submodule (Native)"
 
-# Cek 3: Fallback ke Standalone (Repo A di-clone langsung)
+# Check 3: Fallback to Standalone (Direct Clone)
+# If neither of the above, we assume we are running as a standalone repository (Repo A).
+# We use the git root of this script's location.
 else
-    # Gunakan root dari git repo ini sendiri
+    # Use the root of this git repo itself
     PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SCRIPT_DIR")"
     MODE="Standalone"
 fi
@@ -145,33 +172,33 @@ cmd_start() {
     cp -r "$REGISTRY_DIR/layouts/$layout/sections" latex_source/
     
     # 2. Create a special main.tex that references the registry
-    # We calculate the relative path from latex_source/ to the registry
-    # Assuming standard structure: <repo>/documents/<branch>/latex_source
-    # And registry is at: <repo>/registry
-    # So we need to go up: ../../../registry
+    # We calculate the relative path from latex_source/ to the registry.
+    # Standard structure assumption: <repo>/documents/<branch>/latex_source
+    # And registry location: <repo>/registry
+    # So we typically need to traverse up: ../../../registry
     
-    # However, for the "Private Wrapper" strategy, the path might be different.
-    # We will use a placeholder that defaults to the local registry for now,
-    # but can be easily changed or symlinked.
+    # However, for the "Private Wrapper" strategy, the path might differ.
+    # We use a placeholder that defaults to the local registry for now,
+    # but this design allows it to be easily changed or symlinked later.
     
     print_info "Creating main.tex with template references..."
     
-    # Read the original main.tex
+    # Read the original main.tex from the registry
     local original_main="$REGISTRY_DIR/layouts/$layout/main.tex"
     
     # Create the new main.tex
-    # We inject the \newcommand{\latexKitPath} at the top
+    # We inject the \newcommand{\latexKitPath} at the very top.
+    # This is the magic that allows us to keep templates centralized.
     echo "%!TeX root = main.tex" > latex_source/main.tex
     echo "%% LATEXKIT CONFIGURATION" >> latex_source/main.tex
     echo "%% This path points to the shared template registry." >> latex_source/main.tex
     echo "%% In a Private Wrapper setup, this should point to your submodule." >> latex_source/main.tex
     
-    # Default path: assumes we are in the same repo (monorepo style for now)
+    # Default path logic: assumes we are in the same repo (monorepo style for now)
     # ../../../registry -> from latex_source -> document_dir -> documents -> root -> registry
-    # Wait, the user is currently in the root of the template repo.
-    # If they run ./latexkit start, they are at root.
+    # Wait, if the user runs ./latexkit start, they are at the root.
     # latex_source is created at root/latex_source.
-    # So path to registry is ../registry
+    # So the path to registry is simply ../registry
     
     echo "\newcommand{\latexKitPath}{../.latexkit/registry/layouts/$layout}" >> latex_source/main.tex
     echo "" >> latex_source/main.tex
@@ -472,10 +499,12 @@ cmd_new() {
     # Semester Logic
     
     if [[ -z "$semester" ]]; then
-        # 1. Try to read last semester
+        # 1. Try to read the last used semester from workspace state
+        # This makes the CLI feel "sticky" and smart.
         semester=$(get_workspace_state "LAST_SEMESTER")
         
-        # 2. Fallback: Auto-detect latest semester folder
+        # 2. Fallback: Auto-detect the latest semester folder
+        # If no state is found, we look at the filesystem to guess where the user is working.
         if [[ -z "$semester" ]]; then
             local docs_dir="$PROJECT_ROOT/documents"
             if [[ -d "$docs_dir" ]]; then
@@ -510,6 +539,7 @@ cmd_new() {
     fi
 
     # Always update state to ensure stickiness
+    # We save this choice so the next command defaults to this semester.
     if [[ -n "$semester" ]]; then
         set_workspace_state "LAST_SEMESTER" "$semester"
     fi
