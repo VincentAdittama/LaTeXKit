@@ -162,14 +162,17 @@ get_workflow_stage() {
 # =================================================================
 
 # Get the active project path from .active_project file
+# Get the active project path from shared state
 get_active_project_path() {
-    local repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-    local active_project_file="$repo_root/.active_project"
+    local project_id=$(get_active_project)
     
-    if [[ -f "$active_project_file" ]]; then
-        local project_id=$(cat "$active_project_file" | tr -d '\n')
-        if [[ -n "$project_id" ]]; then
-            echo "documents/$project_id"
+    if [[ -n "$project_id" ]]; then
+        local repo_root=$(get_repo_root)
+        local project_dir=$(find_document_dir_by_id "$repo_root" "$project_id")
+        
+        if [[ -n "$project_dir" ]]; then
+            # Return relative path from repo root for git log filtering
+            echo "${project_dir#$repo_root/}"
             return 0
         fi
     fi

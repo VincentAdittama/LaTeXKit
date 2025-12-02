@@ -144,30 +144,29 @@ select_cleanup() {
     echo ""
 }
 
+# Source common utilities
+source "$SCRIPT_DIR/common.sh"
+
 # Get target directories based on scope
 get_target_dirs() {
     local dirs=()
     
     case "$SCOPE" in
         "all")
-            # Find all project directories in documents
+            # Find all project directories in documents (recursive)
             if [ -d "$WORKSPACE_ROOT/documents" ]; then
-                while IFS= read -r -d '' dir; do
-                    # Add each project directory (not subdirectories)
-                    dirs+=("$dir")
-                done < <(find "$WORKSPACE_ROOT/documents" -mindepth 1 -maxdepth 1 -type d -print0)
+                # Use find to locate directories containing start.md
+                while IFS= read -r -d '' start_file; do
+                    local project_dir=$(dirname "$start_file")
+                    dirs+=("$project_dir")
+                done < <(find "$WORKSPACE_ROOT/documents" -type f -name "start.md" -print0)
             fi
             ;;
         "current")
             # =================================================================
-            # MAIN-ONLY WORKFLOW: Detect project from .active_project file
+            # MAIN-ONLY WORKFLOW: Detect project from shared state
             # =================================================================
-            local active_project_file="$WORKSPACE_ROOT/.active_project"
-            local active_project=""
-            
-            if [ -f "$active_project_file" ]; then
-                active_project=$(cat "$active_project_file" | tr -d '\n')
-            fi
+            local active_project=$(get_active_project)
             
             if [ -z "$active_project" ]; then
                 echo -e "${RED}✗ No active project found${NC}" >&2
@@ -176,23 +175,27 @@ get_target_dirs() {
                 echo -e "  ${BLUE}./latexkit new \"Project Description\"${NC}" >&2
                 echo "" >&2
                 echo -e "${YELLOW}Available projects:${NC}" >&2
-                if [ -d "$WORKSPACE_ROOT/documents" ]; then
-                    ls -1 "$WORKSPACE_ROOT/documents" 2>/dev/null | grep -E '^[0-9]{3}-' | sed 's/^/  /' >&2 || echo "  (none)" >&2
+                if declare -f list_projects >/dev/null; then
+                    list_projects >&2
                 fi
                 exit 1
             fi
             
-            # Map active project to project directory
-            local project_dir="$WORKSPACE_ROOT/documents/$active_project"
+            # Map active project to project directory using shared logic
+            local project_dir=""
+            if declare -f find_document_dir_by_id >/dev/null; then
+                project_dir=$(find_document_dir_by_id "$WORKSPACE_ROOT" "$active_project")
+            else
+                project_dir="$WORKSPACE_ROOT/documents/$active_project"
+            fi
             
-            if [ -d "$project_dir" ]; then
+            if [ -n "$project_dir" ] && [ -d "$project_dir" ]; then
                 dirs+=("$project_dir")
                 echo -e "${GREEN}✓ Using active project: ${YELLOW}$active_project${NC}" >&2
                 echo "" >&2
             else
                 echo -e "${RED}✗ No project directory found: $active_project${NC}" >&2
-                echo -e "${YELLOW}Expected path: documents/$active_project${NC}" >&2
-                echo -e "${YELLOW}Tip: Check if .active_project points to a valid project${NC}" >&2
+                echo -e "${YELLOW}Expected path: documents/.../$active_project${NC}" >&2
                 exit 1
             fi
             ;;

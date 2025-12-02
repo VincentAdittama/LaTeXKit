@@ -296,8 +296,14 @@ cmd_build() {
         # Try to find active project
         local active=$(get_active_project)
         if [[ -n "$active" ]]; then
-            local project_dir="$PROJECT_ROOT/documents/$active"
-            if [[ -d "$project_dir/latex_source" ]]; then
+            local project_dir=""
+            if declare -f find_document_dir_by_id >/dev/null; then
+                project_dir=$(find_document_dir_by_id "$PROJECT_ROOT" "$active")
+            else
+                project_dir="$PROJECT_ROOT/documents/$active"
+            fi
+            
+            if [[ -n "$project_dir" && -d "$project_dir/latex_source" ]]; then
                 print_info "Building active project: $active"
                 (cd "$project_dir" && cmd_build)
                 return $?
@@ -376,8 +382,14 @@ cmd_clean() {
         # Try to find active project
         local active=$(get_active_project)
         if [[ -n "$active" ]]; then
-            local project_dir="$PROJECT_ROOT/documents/$active"
-            if [[ -d "$project_dir" ]]; then
+            local project_dir=""
+            if declare -f find_document_dir_by_id >/dev/null; then
+                project_dir=$(find_document_dir_by_id "$PROJECT_ROOT" "$active")
+            else
+                project_dir="$PROJECT_ROOT/documents/$active"
+            fi
+
+            if [[ -n "$project_dir" && -d "$project_dir" ]]; then
                 print_info "Cleaning active project: $active"
                 (cd "$project_dir" && cmd_clean)
                 return $?
@@ -460,13 +472,45 @@ cmd_new() {
     # Semester Logic
     
     if [[ -z "$semester" ]]; then
-        # Try to read last semester
+        # 1. Try to read last semester
         semester=$(get_workspace_state "LAST_SEMESTER")
-        if [[ -n "$semester" ]]; then
-            print_info "Using last semester: $semester (use --semester to override)"
+        
+        # 2. Fallback: Auto-detect latest semester folder
+        if [[ -z "$semester" ]]; then
+            local docs_dir="$PROJECT_ROOT/documents"
+            if [[ -d "$docs_dir" ]]; then
+                local candidates=()
+                # Use glob expansion safely
+                local found_dirs=("$docs_dir"/*)
+                if [[ -e "${found_dirs[0]}" ]]; then
+                    for dir in "${found_dirs[@]}"; do
+                        if [[ -d "$dir" ]]; then
+                            local dirname=$(basename "$dir")
+                            # Check if it looks like a semester (not a project)
+                            if [[ ! "$dirname" =~ ^\. && ! -f "$dir/start.md" && ! -f "$dir/latexkit.config.json" ]]; then
+                                candidates+=("$dirname")
+                            fi
+                        fi
+                    done
+                fi
+                
+                # Sort candidates reverse to get latest
+                if [[ ${#candidates[@]} -gt 0 ]]; then
+                    IFS=$'\n' sorted=($(sort -r <<<"${candidates[*]}"))
+                    unset IFS
+                    semester="${sorted[0]}"
+                    print_info "Auto-detected semester: $semester"
+                fi
+            fi
         fi
-    else
-        # Save new semester
+
+        if [[ -n "$semester" ]]; then
+            print_info "Using semester: $semester (use --semester to override)"
+        fi
+    fi
+
+    # Always update state to ensure stickiness
+    if [[ -n "$semester" ]]; then
         set_workspace_state "LAST_SEMESTER" "$semester"
     fi
     
