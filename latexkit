@@ -251,6 +251,51 @@ cmd_start() {
     if [[ ! -f "latexkit.config.json" ]]; then
         # Try to find active project
         local active=$(get_active_project)
+        
+        # If no active project, ask user to select one
+        if [[ -z "$active" ]]; then
+            print_warning "No active project found."
+            echo "Please select a project to start:"
+            echo ""
+            
+            # List projects and capture selection
+            # We'll use a simple indexed list
+            local projects=()
+            local i=1
+            
+            # Find all projects
+            while IFS= read -r dir; do
+                if [[ -d "$dir" && ( -f "$dir/start.md" || -f "$dir/latexkit.config.json" ) ]]; then
+                    projects+=("$dir")
+                    local dirname=$(basename "$dir")
+                    echo "  [$i] $dirname"
+                    ((i++))
+                fi
+            done < <(find "$PROJECT_ROOT/documents" -maxdepth 2 -type d -not -path '*/.*')
+            
+            if [[ ${#projects[@]} -eq 0 ]]; then
+                print_error "No projects found in documents/!"
+                exit 1
+            fi
+            
+            echo ""
+            read -p "Enter number (1-$((i-1))): " -r selection
+            
+            if [[ "$selection" =~ ^[0-9]+$ ]] && (( selection >= 1 && selection < i )); then
+                local selected_dir="${projects[$((selection-1))]}"
+                local selected_id=$(basename "$selected_dir")
+                
+                # Set as active
+                set_workspace_state "ACTIVE_PROJECT" "$selected_id"
+                active="$selected_id"
+                print_success "Selected project: $active"
+                echo ""
+            else
+                print_error "Invalid selection."
+                exit 1
+            fi
+        fi
+
         if [[ -n "$active" ]]; then
              local project_dir=""
             if declare -f find_document_dir_by_id >/dev/null; then
@@ -266,8 +311,7 @@ cmd_start() {
             fi
         fi
         
-        print_error "No project found in current directory and no active project set."
-        print_info "Run this command inside a project folder."
+        print_error "Could not locate project directory for: $active"
         exit 1
     fi
     
