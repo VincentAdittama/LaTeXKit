@@ -214,6 +214,7 @@ The text the user typed after `/latexkit.plan` is the assignment brief or descri
   - Include all roles (Ketua, Anggota, Leader, Member, etc.)
   - Preserve student IDs when provided
   - If user states "aku kelompok X" or lists members, this is MANDATORY information
+- **ALWAYS quote file paths** in terminal commands to handle spaces correctly (e.g., `cd "$DOCUMENT_DIR"`)
 
 ## Success Criteria
 
