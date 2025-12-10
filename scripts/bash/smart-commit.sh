@@ -91,22 +91,22 @@ get_workflow_stage() {
         return 0
     fi
     
-    # OUTLINE: Outline artifacts in generated_work/outlines OR outline checklist
+    # OUTLINE: Outline artifacts in generated_work/outline OR outline checklist
     if echo "$all_files" | grep -q "checklists/latexkit\.outline\.md"; then
         echo "OUTLINE"
         return 0
     fi
-    if echo "$all_files" | grep -q "generated_work/outlines"; then
+    if echo "$all_files" | grep -q "generated_work/outline"; then
         echo "OUTLINE"
         return 0
     fi
     
-    # DRAFT: Draft artifacts in generated_work/drafts OR draft checklist
+    # DRAFT: Draft artifacts in generated_work/draft OR draft checklist
     if echo "$all_files" | grep -q "checklists/latexkit\.draft\.md"; then
         echo "DRAFT"
         return 0
     fi
-    if echo "$all_files" | grep -q "generated_work/drafts"; then
+    if echo "$all_files" | grep -q "generated_work/draft"; then
         echo "DRAFT"
         return 0
     fi
@@ -120,7 +120,7 @@ get_workflow_stage() {
         echo "CONVERT"
         return 0
     fi
-    if echo "$all_files" | grep -q "generated_work/conversion"; then
+    if echo "$all_files" | grep -q "generated_work/convert"; then
         echo "CONVERT"
         return 0
     fi
@@ -134,17 +134,9 @@ get_workflow_stage() {
         echo "BUILD"
         return 0
     fi
-    if echo "$all_files" | grep -q "generated_work/compilation"; then
-        echo "BUILD"
-        return 0
-    fi
     
     # CHECK: Quality check artifacts OR check checklist
     if echo "$all_files" | grep -q "checklists/latexkit\.check\.md"; then
-        echo "CHECK"
-        return 0
-    fi
-    if echo "$all_files" | grep -q "generated_work/reviews"; then
         echo "CHECK"
         return 0
     fi
@@ -320,11 +312,11 @@ categorize_changes() {
         categories="${categories}- Research materials\n"
     fi
     
-    if echo "$all_files" | grep -q "generated_work/outlines"; then
+    if echo "$all_files" | grep -q "generated_work/outline"; then
         categories="${categories}- Content outlines\n"
     fi
     
-    if echo "$all_files" | grep -q "generated_work/drafts"; then
+    if echo "$all_files" | grep -q "generated_work/draft"; then
         categories="${categories}- Draft content\n"
     fi
     

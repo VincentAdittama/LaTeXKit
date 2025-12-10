@@ -379,7 +379,7 @@ cmd_outline() {
 # -----------------------------------------------------------------
 cmd_draft() {
     # Includes the outline + research
-    generate_prompt_from_template "5.draft.prompt.md" "generated_work/outlines/*.md" "generated_work/research/*.md"
+    generate_prompt_from_template "5.draft.prompt.md" "generated_work/outline/*.md" "generated_work/research/*.md"
 }
 
 # -----------------------------------------------------------------
@@ -387,7 +387,7 @@ cmd_draft() {
 # -----------------------------------------------------------------
 cmd_convert() {
     # Includes the draft text
-    generate_prompt_from_template "6.convert.prompt.md" "generated_work/drafts/*.md"
+    generate_prompt_from_template "6.convert.prompt.md" "generated_work/draft/*.md"
 }
 
 # -----------------------------------------------------------------
@@ -665,11 +665,11 @@ cmd_new() {
     
     # Create project directory structure
     mkdir -p "$project_dir"/{checklists,latex_source/{sections,images},build,assignment_info,zotero_export}
-    mkdir -p "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}
+    mkdir -p "$project_dir"/generated_work/{research,outline,draft,convert}
     
     # Add .gitkeep files to preserve empty directories
     for dir in "$project_dir"/build "$project_dir"/assignment_info "$project_dir"/zotero_export "$project_dir"/checklists \
-               "$project_dir"/generated_work/{research,outlines,drafts,conversion,compilation,reviews}; do
+               "$project_dir"/generated_work/{research,outline,draft,convert}; do
         touch "$dir/.gitkeep"
     done
     

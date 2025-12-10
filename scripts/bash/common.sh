@@ -514,11 +514,9 @@ validate_project_structure() {
         "$document_dir/assignment_info"
         "$document_dir/zotero_export"
         "$document_dir/generated_work/research"
-        "$document_dir/generated_work/outlines"
-        "$document_dir/generated_work/drafts"
-        "$document_dir/generated_work/conversion"
-        "$document_dir/generated_work/compilation"
-        "$document_dir/generated_work/reviews"
+        "$document_dir/generated_work/outline"
+        "$document_dir/generated_work/draft"
+        "$document_dir/generated_work/convert"
     )
     
     # Check files
