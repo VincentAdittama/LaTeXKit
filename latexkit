@@ -470,6 +470,197 @@ cmd_list() {
     fi
 }
 
+# =================================================================
+# PROMPT GENERATION ENGINE & WORKFLOW COMMANDS
+# =================================================================
+
+# Shared function to generate "Context-Aware" prompts
+# Usage: generate_prompt "template_name" "additional_context_files..."
+generate_prompt_from_template() {
+    local template_name="$1"
+    shift
+    local context_files=("$@")
+
+    print_header
+    echo -e "${CYAN}Generating AI Agent Prompt for: ${template_name}${NC}"
+    echo ""
+
+    # Check for active project
+    if [[ ! -f "latexkit.config.json" ]]; then
+        # Try to switch to active project
+        local active=$(get_active_project)
+        if [[ -n "$active" ]]; then
+            local project_dir=""
+             if declare -f find_document_dir_by_id >/dev/null; then
+                project_dir=$(find_document_dir_by_id "$PROJECT_ROOT" "$active")
+            else
+                project_dir="$PROJECT_ROOT/documents/$active"
+            fi
+            
+            if [[ -n "$project_dir" && -d "$project_dir" ]]; then
+                print_info "Switching context to active project: $active"
+                # Recursively call the calling function (e.g., cmd_research) in the correct dir
+                (cd "$project_dir" && "$FUNCNAME" "$template_name" "${context_files[@]}")
+                return $?
+            fi
+        fi
+        print_error "No active project found! Run inside a project folder or select one."
+        exit 1
+    fi
+
+    # 1. Load Project Metadata
+    local project_name="Untitled Project"
+    local config_content="{}"
+    if command -v jq &> /dev/null; then
+        project_name=$(jq -r '.project.name // "Untitled Project"' latexkit.config.json)
+        config_content=$(cat latexkit.config.json)
+    elif [[ -f "latexkit.config.json" ]]; then
+         config_content=$(cat latexkit.config.json)
+    fi
+
+    local start_content="(No start.md found)"
+    [[ -f "start.md" ]] && start_content=$(cat "start.md")
+
+    # 2. Gather Context Files (Assignment Info is ALWAYS included)
+    local assignment_context=""
+    if [[ -d "assignment_info" ]]; then
+        assignment_context=$(find assignment_info -type f -not -name '.gitkeep' 2>/dev/null | sed 's/^/   - /')
+    fi
+    [[ -z "$assignment_context" ]] && assignment_context="   (No context files found in assignment_info)"
+
+    # 3. Gather Additional Context (Specific to the step)
+    local specific_context=""
+    for pattern in "${context_files[@]}"; do
+        # Handle globbing manually since it's passed as a string
+        # We assume the pattern is relative to project root
+        if compgen -G "$pattern" > /dev/null; then
+            for f in $pattern; do
+                 specific_context+=$'\n   - '"$f"
+            done
+        fi
+    done
+    [[ -z "$specific_context" ]] && specific_context="   (No specific context files found for this step)"
+
+    # 4. Load the Template
+    # We look in the .latexkit submodule location primarily
+    local template_path="$PROJECT_ROOT/.latexkit/.github/prompts/${template_name}"
+    
+    # Fallback: if running standalone
+    if [[ ! -f "$template_path" ]]; then
+        template_path="$SCRIPT_DIR/.github/prompts/${template_name}"
+    fi
+
+    if [[ ! -f "$template_path" ]]; then
+        print_warning "Template '$template_name' not found at $template_path"
+        print_info "Using a generic prompt fallback."
+        template_path=$(mktemp)
+        echo "# Task: $template_name" > "$template_path"
+        echo "Please help me with the $template_name phase of this project." >> "$template_path"
+    fi
+
+    local template_content=$(cat "$template_path")
+
+    # 5. Construct the Final Prompt
+    local prompt_file=$(mktemp)
+
+    cat > "$prompt_file" <<EOF
+You are an AI assistant helping with a LaTeX project.
+
+# Project Context
+**Project Name**: $project_name
+**Path**: $(pwd)
+
+## Configuration
+\`\`\`json
+$config_content
+\`\`\`
+
+## Project Brief
+\`\`\`markdown
+$start_content
+\`\`\`
+
+## Assignment Context (Global)
+**CRITICAL**: You must read these files to understand the requirements.
+$assignment_context
+
+## Stage-Specific Context
+The following files are relevant to this specific stage ($template_name):
+$specific_context
+
+## Directory Structure
+\`\`\`
+$(ls -R | grep ":$" | head -n 20 | sed 's/:$//' | sed 's/[^-][^\/]*\//--/g' | sed 's/^/   /' | sed 's/-/|/')
+(truncated)
+\`\`\`
+
+---
+# INSTRUCTIONS
+
+$template_content
+EOF
+
+    # Output to user
+    echo -e "${YELLOW}--- COPY THE PROMPT BELOW ---${NC}"
+    cat "$prompt_file"
+    echo -e "${YELLOW}-----------------------------${NC}"
+    
+    # Optional: Copy to clipboard (macOS only)
+    if command -v pbcopy &> /dev/null; then
+        cat "$prompt_file" | pbcopy
+        echo ""
+        print_success "Prompt copied to clipboard!"
+    fi
+    
+    rm "$prompt_file"
+}
+
+# -----------------------------------------------------------------
+# 1. START (Already defined as cmd_start, but expanded here for consistency)
+# -----------------------------------------------------------------
+# cmd_start is defined above.
+
+# -----------------------------------------------------------------
+# 2. RESEARCH
+# -----------------------------------------------------------------
+cmd_research() {
+    # Includes assignment info + any existing research notes
+    generate_prompt_from_template "latexkit.research.prompt.md" "generated_work/research/*.md"
+}
+
+# -----------------------------------------------------------------
+# 3. OUTLINE
+# -----------------------------------------------------------------
+cmd_outline() {
+    # Includes research notes
+    generate_prompt_from_template "latexkit.outline.prompt.md" "generated_work/research/*.md"
+}
+
+# -----------------------------------------------------------------
+# 4. DRAFT
+# -----------------------------------------------------------------
+cmd_draft() {
+    # Includes the outline + research
+    generate_prompt_from_template "latexkit.draft.prompt.md" "generated_work/outlines/*.md" "generated_work/research/*.md"
+}
+
+# -----------------------------------------------------------------
+# 5. CONVERT
+# -----------------------------------------------------------------
+cmd_convert() {
+    # Includes the draft text
+    generate_prompt_from_template "latexkit.convert.prompt.md" "generated_work/drafts/*.md"
+}
+
+# -----------------------------------------------------------------
+# TOOLS (Build, Check, Commit)
+# -----------------------------------------------------------------
+
+cmd_check() {
+    # Includes build logs or latex source
+    generate_prompt_from_template "latexkit.check.prompt.md" "latex_source/main.log" "latex_source/*.tex"
+}
+
 # Command: build
 cmd_build() {
     if [[ ! -d "latex_source" ]]; then
@@ -1119,125 +1310,91 @@ cmd_reset() {
     fi
 }
 
-# Command: help
-# Command: prompt (generate context prompt)
-cmd_prompt() {
-    local script="$SCRIPT_DIR/scripts/bash/gen-prompt.sh"
-    if [[ ! -x "$script" ]]; then
-        print_error "Prompt generator script not found or not executable!"
-        print_info "Expected: $script"
-        exit 1
-    fi
-    "$script" "$@"
-}
 
-cmd_help() {
-    print_header
-    echo "Usage: ./latexkit <command> [options]"
-    echo ""
-    echo -e "${CYAN}Project Management (Main-Only Workflow):${NC}"
-    echo "  new \"description\"       Create a new project in documents/"
-    echo "  switch <id|num>         Switch active project (e.g., switch 1 or switch 001-my-project)"
-    echo "  projects                List all projects"
-    echo "  current                 Show current active project"
-    echo ""
-    echo -e "${CYAN}LaTeX Template Commands:${NC}"
-    echo "  start [--layout <name>] Initialize LaTeX template in current directory"
-    echo "  add <component>         Add a component to your project"
-    echo "  list                    List available layouts and components"
-    echo "  build                   Compile the LaTeX document"
-    echo "  clean                   Remove build artifacts"
-    echo ""
-    echo -e "${CYAN}Git Integration:${NC}"
-    echo "  commit [stage] [opts]   Smart git commit with workflow labels"
-    echo "  reset                   🔥 Reset projects (DESTRUCTIVE)"
-    echo ""
-    echo "  help                    Show this help message"
-    echo ""
-    echo -e "${CYAN}Examples:${NC}"
-    echo "  ./latexkit new \"Essay Sejarah Indonesia\"   # Create new project"
-    echo "  ./latexkit switch 1                         # Switch to project 001"
-    echo "  ./latexkit projects                         # List all projects"
-    echo "  ./latexkit build                            # Compile current project"
-    echo "  ./latexkit commit research                  # Commit with RESEARCH label"
-}
-
-# Main command router
-main() {
-    if [[ $# -eq 0 ]]; then
-        cmd_help
-        exit 0
-    fi
-    
-    case $1 in
-        init)
-            shift
-            cmd_init "$@"
-            ;;
-        start)
-            shift
-            cmd_start "$@"
-            ;;
-        new)
-            shift
-            cmd_new "$@"
-            ;;
-        add)
-            shift
-            cmd_add "$@"
-            ;;
-        list)
-            shift
-            cmd_list "$@"
-            ;;
-        build)
-            shift
-            cmd_build "$@"
-            ;;
-        clean)
-            shift
-            cmd_clean "$@"
-            ;;
-        commit)
-            shift
-            cmd_commit "$@"
-            ;;
-        switch)
-            shift
-            cmd_switch "$@"
-            ;;
-        projects)
-            shift
-            cmd_projects "$@"
-            ;;
-        reset)
-            shift
-            cmd_reset "$@"
-            ;;
-        help|--help|-h)
-            print_header
-            echo "Usage: ./latexkit <command> [options]"
-            echo ""
-            echo "Commands:"
-            echo "  new      Create a new project in documents/"
-            echo "  start    Generate an AI Agent Prompt for the current project"
-            echo "  init     Initialize the current folder as a LaTeXKit project"
-            echo "  switch   Switch active project context"
-            echo "  projects List all projects"
-            echo "  add      Add a component to the current project"
-            echo "  list     List available layouts and components"
-            echo "  build    Build the current project"
-            echo "  clean    Clean build artifacts"
-            echo "  commit   Smart commit with conventional messages"
-            echo "  reset    Reset project state (dangerous)"
-            echo ""
-            ;;
-        *)
+case "$1" in
+    new)
+        shift
+        cmd_new "$@"
+        ;;
+    start)
+        cmd_start
+        ;;
+    research)
+        cmd_research
+        ;;
+    outline)
+        cmd_outline
+        ;;
+    draft)
+        cmd_draft
+        ;;
+    convert)
+        cmd_convert
+        ;;
+    check)
+        cmd_check
+        ;;
+    add)
+        shift
+        cmd_add "$@"
+        ;;
+    list)
+        cmd_list
+        ;;
+    build)
+        cmd_build
+        ;;
+    clean)
+        cmd_clean
+        ;;
+    commit)
+        shift
+        cmd_commit "$@"
+        ;;
+    switch)
+        shift
+        # Define inline or load from common
+        if [[ -z "$1" ]]; then
+            print_warning "Usage: ./latexkit switch <project-id>"
+            list_projects
+            exit 1
+        fi
+        set_active_project "$1"
+        ;;
+    projects)
+        list_projects
+        ;;
+    help|--help|-h)
+        print_header
+        echo "Usage: ./latexkit <command> [options]"
+        echo ""
+        echo "Workflow Commands (Sequential):"
+        echo "  1. new       Create a new project"
+        echo "  2. start     [AI] Generate plan & initial prompt"
+        echo "  3. research  [AI] Generate prompt for research phase"
+        echo "  4. outline   [AI] Generate prompt for outlining phase"
+        echo "  5. draft     [AI] Generate prompt for drafting phase"
+        echo "  6. convert   [AI] Generate prompt for LaTeX conversion"
+        echo ""
+        echo "Tools:"
+        echo "  build      Build the current project (PDF)"
+        echo "  check      [AI] Analyze logs and latex source"
+        echo "  commit     Smart commit with conventional messages"
+        echo "  switch     Switch active project context"
+        echo "  projects   List all projects"
+        echo "  add        Add a component to the current project"
+        echo "  list       List available layouts and components"
+        echo "  clean      Clean build artifacts"
+        echo ""
+        ;;
+    *)
+        if [[ -n "$1" ]]; then
             print_error "Unknown command: $1"
             echo "Run './latexkit help' for usage"
             exit 1
-            ;;
-    esac
-}
-
-main "$@"
+        else
+            # Default to help
+            "$0" help
+        fi
+        ;;
+esac
