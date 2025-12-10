@@ -158,7 +158,7 @@ Using VS Code:
 
 ---
 
-## ✅ Validation Checklist
+## ✅ Validation Steps
 
 Before declaring conversion complete:
 

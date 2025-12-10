@@ -5,7 +5,7 @@ Resolve ambiguities in the project by interactively asking targeted questions an
 
 ## CONTEXT
 - **Goal**: Remove `[NEEDS CLARIFICATION]` markers.
-- **Scope**: Scans `start.md`, checklists, and drafts.
+- **Scope**: Scans `start.md` and drafts.
 
 ## INPUT
 ```text

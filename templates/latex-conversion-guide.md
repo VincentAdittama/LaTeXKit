@@ -26,7 +26,7 @@
 ✅ CORRECT: \section{Title}     % Proper backslash
 ```
 
-### Prevention Checklist
+### Prevention Steps
 
 When writing LaTeX commands:
 - [ ] **Always** write full backslash before command: `\textbf` not `\textbf`
@@ -498,7 +498,7 @@ However, recent research suggests a more nuanced view \cite{brown2022}.
 
 ---
 
-## Conversion Checklist
+## Conversion Validation
 
 When converting Markdown to LaTeX, verify:
 

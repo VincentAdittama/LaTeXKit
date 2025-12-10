@@ -702,11 +702,11 @@ cmd_new() {
     print_info "Project ID: $project_id"
     
     # Create project directory structure
-    mkdir -p "$project_dir"/{checklists,latex_source/{sections,images},build,assignment_info,zotero_export}
+    mkdir -p "$project_dir"/{latex_source/{sections,images},build,assignment_info,zotero_export}
     mkdir -p "$project_dir"/generated_work/{research,outline,draft,convert}
     
     # Add .gitkeep files to preserve empty directories
-    for dir in "$project_dir"/build "$project_dir"/assignment_info "$project_dir"/zotero_export "$project_dir"/checklists \
+    for dir in "$project_dir"/build "$project_dir"/assignment_info "$project_dir"/zotero_export \
                "$project_dir"/generated_work/{research,outline,draft,convert}; do
         touch "$dir/.gitkeep"
     done

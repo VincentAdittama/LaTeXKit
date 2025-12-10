@@ -38,17 +38,8 @@ get_workflow_stage() {
     # Each workflow command creates specific artifacts that indicate the phase
     
     # PLAN/START: Initial project setup
-    if echo "$all_files" | grep -q "checklists/latexkit\.plan\.md"; then
-        echo "PLAN"
-        return 0
-    fi
-    if echo "$all_files" | grep -q "checklists/latexkit\.start\.md"; then
-        # Check if this is the first time start checklist is created
-        if ! git log --all --oneline -- "*checklists/latexkit.start.md" 2>/dev/null | grep -q "."; then
-            echo "START"
-            return 0
-        fi
-    fi
+
+
     
     # START: Alternative detection - plan.md being created for first time
     if echo "$all_files" | grep -q "generated_work/plan\.md" || echo "$all_files" | grep -q "^plan\.md"; then
@@ -66,11 +57,7 @@ get_workflow_stage() {
         fi
     fi
     
-    # CLARIFY: Clarify checklist exists OR start.md being edited after initial creation
-    if echo "$all_files" | grep -q "checklists/latexkit\.clarify\.md"; then
-        echo "CLARIFY"
-        return 0
-    fi
+
     
     # CLARIFY: start.md edited after first commit (not a new file)
     if echo "$all_files" | grep -q "start\.md"; then
@@ -81,41 +68,25 @@ get_workflow_stage() {
         fi
     fi
     
-    # RESEARCH: Research artifacts in generated_work/research OR research checklist
-    if echo "$all_files" | grep -q "checklists/latexkit\.research\.md"; then
-        echo "RESEARCH"
-        return 0
-    fi
+
     if echo "$all_files" | grep -q "generated_work/research"; then
         echo "RESEARCH"
         return 0
     fi
     
-    # OUTLINE: Outline artifacts in generated_work/outline OR outline checklist
-    if echo "$all_files" | grep -q "checklists/latexkit\.outline\.md"; then
-        echo "OUTLINE"
-        return 0
-    fi
+
     if echo "$all_files" | grep -q "generated_work/outline"; then
         echo "OUTLINE"
         return 0
     fi
     
-    # DRAFT: Draft artifacts in generated_work/draft OR draft checklist
-    if echo "$all_files" | grep -q "checklists/latexkit\.draft\.md"; then
-        echo "DRAFT"
-        return 0
-    fi
+
     if echo "$all_files" | grep -q "generated_work/draft"; then
         echo "DRAFT"
         return 0
     fi
     
-    # CONVERT: LaTeX sections OR conversion artifacts OR convert checklist
-    if echo "$all_files" | grep -q "checklists/latexkit\.convert\.md"; then
-        echo "CONVERT"
-        return 0
-    fi
+
     if echo "$all_files" | grep -q "latex_source/sections.*\.tex"; then
         echo "CONVERT"
         return 0
@@ -125,21 +96,13 @@ get_workflow_stage() {
         return 0
     fi
     
-    # BUILD: PDF files OR build artifacts OR build checklist
-    if echo "$all_files" | grep -q "checklists/latexkit\.build\.md"; then
-        echo "BUILD"
-        return 0
-    fi
+
     if echo "$all_files" | grep -q "build/.*\.pdf"; then
         echo "BUILD"
         return 0
     fi
     
-    # CHECK: Quality check artifacts OR check checklist
-    if echo "$all_files" | grep -q "checklists/latexkit\.check\.md"; then
-        echo "CHECK"
-        return 0
-    fi
+
     
     # Template/system changes
     if echo "$all_files" | grep -q "\.latexkit/\|scripts/\|registry/\|config/"; then
@@ -328,9 +291,7 @@ categorize_changes() {
         categories="${categories}- Bibliography\n"
     fi
     
-    if echo "$all_files" | grep -q "checklists/"; then
-        categories="${categories}- Checklists\n"
-    fi
+
     
     if echo "$all_files" | grep -q "assignment_info/"; then
         categories="${categories}- Assignment context files\n"
@@ -576,7 +537,7 @@ EXAMPLES OUTPUT:
   DRAFT-04: Complete introduction and methodology
   
   - Revised draft content
-  - Updated checklists
+
 
   Note: Numbers are sequential for commits in THIS PROJECT ONLY.
 

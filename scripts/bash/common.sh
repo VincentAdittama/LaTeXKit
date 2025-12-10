@@ -453,7 +453,7 @@ CONTENT_OUTLINE='$document_dir/outline.md'
 BIBLIOGRAPHY='$document_dir/bibliography.bib'
 LATEX_SOURCE='$document_dir/latex_source'
 BUILD_DIR='$document_dir/build'
-CHECKLISTS_DIR='$document_dir/checklists'
+
 EOF
 }
 
@@ -506,7 +506,7 @@ validate_project_structure() {
     
     # Required directories
     local required_dirs=(
-        "$document_dir/checklists"
+
         "$document_dir/latex_source"
         "$document_dir/latex_source/sections"
         "$document_dir/latex_source/images"

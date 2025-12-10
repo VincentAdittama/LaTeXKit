@@ -37,7 +37,7 @@ if validate_project_structure "$DOCUMENT_DIR"; then
     echo ""
     log "All required files and directories are present:"
     echo "  ✓ generated_work/plan.md"
-    echo "  ✓ checklists/"
+
     echo "  ✓ latex_source/"
     echo "  ✓ latex_source/sections/"
     echo "  ✓ latex_source/images/"

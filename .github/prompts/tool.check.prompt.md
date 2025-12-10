@@ -5,7 +5,7 @@ Perform a final quality review before submission, ensuring compliance with requi
 
 ## CONTEXT
 - **Input**: Draft, PDF, Assignment Info.
-- **Output**: Review Report and Submission Checklist.
+- **Output**: Review Report.
 - **Goal**: Detect last-minute issues.
 
 ## INPUT
@@ -28,11 +28,7 @@ $ARGUMENTS
     - Create `generated_work/reviews/YYYYMMDD_review-report.md`.
     - Rate: Strengths, Improvements, Submission Readiness.
 
-4.  **EXECUTE: Checklist**
-    - Generate `checklists/latexkit.check.md`.
-    - Silent validation.
-
-5.  **REPORT**
+4.  **REPORT**
     - Summary of readiness.
 
 ## RULES
