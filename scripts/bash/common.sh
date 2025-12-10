@@ -139,7 +139,7 @@ set_workspace_state() {
 # It prioritizes:
 #   1. Environment variable LATEXKIT_DOCUMENT
 #   2. .active_project file in repo root (set by `latexkit switch`)
-#   3. Current working directory detection (if inside documents/xxx)
+#   3. Current working directory detection (if inside documents/<project-slug>)
 #   4. Most recently modified project in documents/
 #   5. Fallback to "main" (no active project)
 # =================================================================

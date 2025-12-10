@@ -36,7 +36,7 @@ Options:
 Examples:
     $0                              # Compile default main.tex
     $0 --file custom.tex            # Compile custom file
-    $0 --dir assignments/xxx/latex_source  # Specify directory
+    $0 --dir documents/<project-slug>/latex_source  # Specify directory
     $0 --clean                      # Compile and clean auxiliary files
 EOF
     exit 1

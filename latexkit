@@ -81,7 +81,7 @@ NC='\033[0m' # No Color
 # Helper functions
 print_header() {
     local title="LaTeXKit v${VERSION}"
-    local subtitle="Component-based LaTeX Templates"
+    local subtitle="Mission Control"
     
     # Calculate the width needed (use the longer line)
     local title_len=${#title}
@@ -89,10 +89,11 @@ print_header() {
     local content_width=$((title_len > subtitle_len ? title_len : subtitle_len))
     
     # Add padding (4 spaces on each side)
-    local total_width=$((content_width + 8))
+    local total_width=$((content_width + 12))
     
     # Generate horizontal borders dynamically
     local horizontal_border=$(printf '═%.0s' $(seq 1 $total_width))
+    local separator=$(printf '─%.0s' $(seq 1 $total_width))
     
     # Calculate padding for centering
     local title_padding=$(( (total_width - title_len) / 2 ))
@@ -102,6 +103,13 @@ print_header() {
     echo "╔${horizontal_border}╗"
     printf "║%*s%s%*s║\n" $title_padding "" "$title" $((total_width - title_len - title_padding)) ""
     printf "║%*s%s%*s║\n" $subtitle_padding "" "$subtitle" $((total_width - subtitle_len - subtitle_padding)) ""
+    echo "╠${horizontal_border}╣"
+    echo "║ 1. NEW      (Create Project)      ║"
+    echo "║ 2. PLAN     (AI Planning)         ║"
+    echo "║ 3. RESEARCH (AI Research)         ║"
+    echo "║ 4. OUTLINE  (AI Outlining)        ║"
+    echo "║ 5. DRAFT    (AI Drafting)         ║"
+    echo "║ 6. CONVERT  (AI LaTeX Conversion) ║"
     echo "╚${horizontal_border}╝"
     echo -e "${NC}"
 }
@@ -126,7 +134,7 @@ print_warning() {
 # Command: plan (Generate AI Prompt)
 cmd_plan() {
     # Includes assignment info + configuration + brief
-    generate_prompt_from_template "latexkit.plan.prompt.md"
+    generate_prompt_from_template "2.plan.prompt.md"
 }
 
 # Command: start (Generate AI Prompt)
@@ -355,7 +363,7 @@ EOF
 # -----------------------------------------------------------------
 cmd_research() {
     # Includes assignment info + any existing research notes
-    generate_prompt_from_template "latexkit.research.prompt.md" "generated_work/research/*.md"
+    generate_prompt_from_template "3.research.prompt.md" "generated_work/research/*.md"
 }
 
 # -----------------------------------------------------------------
@@ -363,7 +371,7 @@ cmd_research() {
 # -----------------------------------------------------------------
 cmd_outline() {
     # Includes research notes
-    generate_prompt_from_template "latexkit.outline.prompt.md" "generated_work/research/*.md"
+    generate_prompt_from_template "4.outline.prompt.md" "generated_work/research/*.md"
 }
 
 # -----------------------------------------------------------------
@@ -371,7 +379,7 @@ cmd_outline() {
 # -----------------------------------------------------------------
 cmd_draft() {
     # Includes the outline + research
-    generate_prompt_from_template "latexkit.draft.prompt.md" "generated_work/outlines/*.md" "generated_work/research/*.md"
+    generate_prompt_from_template "5.draft.prompt.md" "generated_work/outlines/*.md" "generated_work/research/*.md"
 }
 
 # -----------------------------------------------------------------
@@ -379,7 +387,7 @@ cmd_draft() {
 # -----------------------------------------------------------------
 cmd_convert() {
     # Includes the draft text
-    generate_prompt_from_template "latexkit.convert.prompt.md" "generated_work/drafts/*.md"
+    generate_prompt_from_template "6.convert.prompt.md" "generated_work/drafts/*.md"
 }
 
 # -----------------------------------------------------------------
@@ -388,7 +396,7 @@ cmd_convert() {
 
 cmd_check() {
     # Includes build logs or latex source
-    generate_prompt_from_template "latexkit.check.prompt.md" "latex_source/main.log" "latex_source/*.tex"
+    generate_prompt_from_template "tool.check.prompt.md" "latex_source/main.log" "latex_source/*.tex"
 }
 
 # Command: build
@@ -673,12 +681,24 @@ cmd_new() {
     print_info "Copying latexmkrc..."
     cp "$SCRIPT_DIR/templates/latexmkrc" "$project_dir/latex_source/.latexmkrc"
     
-    # Calculate relative path to registry
-    # Depth: documents/<semester>/<project>/latex_source -> 4 levels up
-    # Depth: documents/<project>/latex_source -> 3 levels up
-    local registry_rel_path="../../../.latexkit/registry/layouts/$layout"
+    # Calculate relative path to registry for \latexKitPath
+    # Standalone: documents/project/latex_source -> ../../../registry
+    # Submodule: documents/project/latex_source -> ../../../.latexkit/registry
+    
+    local up_path="../../../"
     if [[ -n "$semester" ]]; then
-        registry_rel_path="../../../../.latexkit/registry/layouts/$layout"
+        up_path="../../../../"
+    fi
+    
+    local registry_rel_path=""
+    if [[ -d "$PROJECT_ROOT/registry" ]]; then
+        # Standalone Mode (registry is at project root)
+        registry_rel_path="${up_path}registry/layouts/$layout"
+    else
+        # Submodule Mode (registry is inside .latexkit)
+        # Note: We assume the submodule folder is named .latexkit. 
+        # If named differently, users should rename it or use symlinks.
+        registry_rel_path="${up_path}.latexkit/registry/layouts/$layout"
     fi
     
     # Create main.tex with template reference
