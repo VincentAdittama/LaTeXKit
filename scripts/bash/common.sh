@@ -195,8 +195,8 @@ get_active_project() {
         for dir in "$docs_dir"/*; do
             if [[ -d "$dir" ]]; then
                 local dirname=$(basename "$dir")
-                # Check if it is a project (has generated_work/plan.md, plan.md, start.md or config)
-                if [[ -f "$dir/generated_work/plan.md" || -f "$dir/plan.md" || -f "$dir/start.md" || -f "$dir/latexkit.config.json" ]]; then
+                # Check if it is a project (has generated_work/plan.md, plan.md, or config)
+                if [[ -f "$dir/generated_work/plan.md" || -f "$dir/plan.md" || -f "$dir/latexkit.config.json" ]]; then
                     # Get modification time
                     local mtime
                     if [[ "$(uname)" == "Darwin" ]]; then
@@ -289,14 +289,14 @@ list_projects() {
     for dir in "$docs_dir"/*; do
         if [[ -d "$dir" ]]; then
             local dirname=$(basename "$dir")
-            if [[ -f "$dir/generated_work/plan.md" || -f "$dir/plan.md" || -f "$dir/start.md" || -f "$dir/latexkit.config.json" ]]; then
+            if [[ -f "$dir/generated_work/plan.md" || -f "$dir/plan.md" || -f "$dir/latexkit.config.json" ]]; then
                 print_project "$dir" "  "
             elif [[ ! "$dirname" =~ ^\. ]]; then
                 # Possible semester folder (not hidden, not a project)
                 # Check if it contains projects
                 local has_projects=false
                 for subdir in "$dir"/*; do
-                    if [[ -d "$subdir" && (-f "$subdir/generated_work/plan.md" || -f "$subdir/plan.md" || -f "$subdir/start.md" || -f "$subdir/latexkit.config.json") ]]; then
+                    if [[ -d "$subdir" && (-f "$subdir/generated_work/plan.md" || -f "$subdir/plan.md" || -f "$subdir/latexkit.config.json") ]]; then
                         has_projects=true
                         break
                     fi

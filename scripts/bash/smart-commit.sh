@@ -40,8 +40,7 @@ get_workflow_stage() {
     # PLAN/START: Initial project setup
 
 
-    
-    # START: Alternative detection - plan.md being created for first time
+    # PLAN/START: Initial project setup
     if echo "$all_files" | grep -q "generated_work/plan\.md" || echo "$all_files" | grep -q "^plan\.md"; then
         if ! git log --all --oneline -- "*plan.md" 2>/dev/null | grep -q "."; then
             echo "PLAN"
@@ -49,20 +48,10 @@ get_workflow_stage() {
         fi
     fi
     
-    # START: Alternative detection - start.md being created for first time
-    if echo "$all_files" | grep -q "start\.md"; then
-        if ! git log --all --oneline -- "*start.md" 2>/dev/null | grep -q "."; then
-            echo "PLAN"
-            return 0
-        fi
-    fi
-    
-
-    
-    # CLARIFY: start.md edited after first commit (not a new file)
-    if echo "$all_files" | grep -q "start\.md"; then
-        if git log --all --oneline -- "*start.md" 2>/dev/null | grep -q "."; then
-            # start.md exists in history and being modified
+    # CLARIFY: plan.md edited after first commit (not a new file)
+    if echo "$all_files" | grep -q "generated_work/plan\.md"; then
+        if git log --all --oneline -- "*plan.md" 2>/dev/null | grep -q "."; then
+            # plan.md exists in history and being modified
             echo "CLARIFY"
             return 0
         fi
@@ -267,7 +256,7 @@ categorize_changes() {
     
     local categories=""
     
-    if echo "$all_files" | grep -q "^documents/.*start\.md"; then
+    if echo "$all_files" | grep -q "^documents/.*plan\.md"; then
         categories="${categories}- Project start files\n"
     fi
     

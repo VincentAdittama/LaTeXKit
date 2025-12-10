@@ -48,14 +48,14 @@
     \vfill
     
     % Logo (only if defined and exists)
-    \ifx\docLogoFile\empty\else
+    \ifdefempty{\docLogoFile}{}{
         \IfFileExists{\docLogoFile}{
             \includegraphics[width=0.3\textwidth]{\docLogoFile}\par
         }{
-            % Try searching in graphics path if not found directly
-            \includegraphics[width=0.3\textwidth]{\docLogoFile}\par
+            % Do nothing if not found, just log it
+            \PackageWarning{latexkit}{Logo file defined but not found: \docLogoFile}
         }
-    \fi
+    }
     
     \vfill
     {\Large Dosen:\par \docProfessor\par}

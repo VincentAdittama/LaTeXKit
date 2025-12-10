@@ -658,7 +658,8 @@ cmd_new() {
                         if [[ -d "$dir" ]]; then
                             local dirname=$(basename "$dir")
                             # Check if it looks like a semester (not a project)
-                            if [[ ! "$dirname" =~ ^\. && ! -f "$dir/generated_work/plan.md" && ! -f "$dir/plan.md" && ! -f "$dir/start.md" && ! -f "$dir/latexkit.config.json" ]]; then
+                            # Check if it looks like a semester (not a project)
+                            if [[ ! "$dirname" =~ ^\. && ! -f "$dir/generated_work/plan.md" && ! -f "$dir/plan.md" && ! -f "$dir/latexkit.config.json" ]]; then
                                 candidates+=("$dirname")
                             fi
                         fi
@@ -760,18 +761,18 @@ cmd_new() {
         registry_rel_path="${up_path}.latexkit/registry/layouts/$layout"
     fi
     
-    # Create main.tex with template reference
+    # Create main.tex (Directly use the template content)
+    # We no longer need \latexKitPath because we copy preamble.tex locally.
+    
+    # 1. Copy preamble.tex
+    print_info "Copying preamble.tex..."
+    cp "$REGISTRY_DIR/layouts/$layout/preamble.tex" "$project_dir/latex_source/preamble.tex"
+    
+    # 2. Create main.tex
     cat > "$project_dir/latex_source/main.tex" <<EOF
 %!TeX root = main.tex
-%% LATEXKIT CONFIGURATION
-%% This path points to the shared template registry.
-\\newcommand{\\latexKitPath}{$registry_rel_path}
-
 $(cat "$REGISTRY_DIR/layouts/$layout/main.tex")
 EOF
-    
-    # Patch preamble input to use latexKitPath
-    sed -i '' 's|\\input{preamble.tex}|\\input{\\latexKitPath/preamble.tex}|g' "$project_dir/latex_source/main.tex"
     
     # Create basic plan.md
     mkdir -p "$project_dir/generated_work"

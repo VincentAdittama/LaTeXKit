@@ -4,7 +4,8 @@
 %% --------------------------------------------------------------------
 
 %% Page Layout
-\usepackage[a4paper, margin=1in]{geometry}
+\PassOptionsToPackage{a4paper, margin=1in}{geometry}
+\usepackage{geometry}
 
 %% Core Packages
 \usepackage{fontspec}
@@ -31,7 +32,7 @@
 % Bibliography Configuration:
 % The path to your .bib file depends on your Zotero export structure.
 % Default to the standard Zotero export location:
-\addbibresource{../zotero_export/references.bib}
+\addbibresource{../zotero_export/Exported Items.bib}
 
 \DefineBibliographyStrings{indonesian}{
   andothers = {et al\adddot},

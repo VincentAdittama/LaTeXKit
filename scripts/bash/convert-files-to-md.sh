@@ -155,11 +155,11 @@ get_target_dirs() {
         "all")
             # Find all project directories in documents (recursive)
             if [ -d "$WORKSPACE_ROOT/documents" ]; then
-                # Use find to locate directories containing start.md
+                # Use find to locate directories containing plan.md
                 while IFS= read -r -d '' start_file; do
                     local project_dir=$(dirname "$start_file")
                     dirs+=("$project_dir")
-                done < <(find "$WORKSPACE_ROOT/documents" -type f -name "start.md" -print0)
+                done < <(find "$WORKSPACE_ROOT/documents" -type f -name "plan.md" -print0)
             fi
             ;;
         "current")

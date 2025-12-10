@@ -5,7 +5,7 @@ Resolve ambiguities in the project by interactively asking targeted questions an
 
 ## CONTEXT
 - **Goal**: Remove `[NEEDS CLARIFICATION]` markers.
-- **Scope**: Scans `start.md` and drafts.
+- **Scope**: Scans `plan.md` and drafts.
 
 ## INPUT
 ```text
@@ -16,7 +16,7 @@ $ARGUMENTS
 
 1.  **DETECT MARKERS**
     - Scan project for `[NEEDS CLARIFICATION]` or `[NEED CLARIFICATION]`.
-    - Scan `start.md` for missing critical info.
+    - Scan `plan.md` for missing critical info.
 
 2.  **INTERACTIVE LOOP (Max 5 Questions)**
     - Identify highest priority ambiguity.

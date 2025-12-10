@@ -16,7 +16,7 @@ $ARGUMENTS
 ## MISSION STEPS
 
 1.  **DETECT & VALIDATE**
-    - Load `start.md`, final draft, and PDF.
+    - Load `plan.md`, final draft, and PDF.
     - Check requirements: Word count, sections, formatting.
 
 2.  **EXECUTE: Quality Assessment**

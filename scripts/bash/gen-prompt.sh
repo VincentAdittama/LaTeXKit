@@ -56,9 +56,6 @@ if [ -f "${DOCUMENT_DIR}/generated_work/plan.md" ]; then
 elif [ -f "${DOCUMENT_DIR}/plan.md" ]; then
     echo "## Current State (plan.md):" >> "$OUTPUT_FILE"
     cat "${DOCUMENT_DIR}/plan.md" >> "$OUTPUT_FILE"
-elif [ -f "${DOCUMENT_DIR}/start.md" ]; then
-    echo "## Current State (start.md):" >> "$OUTPUT_FILE"
-    cat "${DOCUMENT_DIR}/start.md" >> "$OUTPUT_FILE"
     echo "" >> "$OUTPUT_FILE"
 fi
 

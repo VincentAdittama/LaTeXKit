@@ -132,7 +132,7 @@
 - ✅ **DO**: Version all generated files (v01, v02, v03...)
 - ✅ **DO**: Keep backups of important work
 - ✅ **DO**: Document research process and decisions
-- ✅ **DO**: Save drafts at major milestones
+- ✅ **DO**: Save draft versions at major milestones
 - ❌ **DON'T**: Overwrite earlier versions
 - ❌ **DON'T**: Rely on single copy without backup
 - ❌ **DON'T**: Delete brainstorming or planning documents
@@ -221,7 +221,7 @@ These principles are **non-negotiable**. The AI assistant is programmed to:
 
 - This constitution applies unless your institution has different specific requirements
 - When institutional policy conflicts with this document, institutional policy prevails
-- Document any approved exceptions in `start.md` or assignment requirements
+- Document any approved exceptions in `plan.md` or assignment requirements
 - This constitution may be updated; check version date below
 
 **Last Updated**: 2025-10-15  
