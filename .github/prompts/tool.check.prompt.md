@@ -32,9 +32,8 @@ $ARGUMENTS
     - Generate `checklists/latexkit.check.md`.
     - Silent validation.
 
-5.  **REPORT & COMMIT**
+5.  **REPORT**
     - Summary of readiness.
-    - **Auto-Commit** (if requested): `smart-commit.sh check`.
 
 ## RULES
 - **Honesty**: Be constructive but strict.

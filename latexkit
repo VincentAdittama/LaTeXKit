@@ -133,8 +133,12 @@ print_warning() {
 # Command: init (formerly start)
 # Command: plan (Generate AI Prompt)
 cmd_plan() {
+    local auto_commit="false"
+    if [[ "$1" == "--auto-commit" ]]; then
+        auto_commit="true"
+    fi
     # Includes assignment info + configuration + brief
-    generate_prompt_from_template "2.plan.prompt.md"
+    generate_prompt_from_template "2.plan.prompt.md" "plan" "$auto_commit"
 }
 
 # Command: start (Generate AI Prompt)
@@ -214,7 +218,9 @@ cmd_list() {
 # Usage: generate_prompt "template_name" "additional_context_files..."
 generate_prompt_from_template() {
     local template_name="$1"
-    shift
+    local phase_slug="$2"
+    local should_commit="$3"
+    shift 3
     local context_files=("$@")
 
     print_header
@@ -337,6 +343,18 @@ $(ls -R | grep ":$" | head -n 20 | sed 's/:$//' | sed 's/[^-][^\/]*\//--/g' | se
 $template_content
 EOF
 
+    # 6. Append Auto-Commit Instruction (if requested)
+    if [[ "$should_commit" == "true" ]]; then
+        cat >> "$prompt_file" <<EOF
+
+---
+## AUTO-COMMIT (Requested via --auto-commit)
+- **EXECUTE**: After completing the report, you MUST run:
+  \`bash .latexkit/scripts/bash/smart-commit.sh $phase_slug\`
+  
+EOF
+    fi
+
     # Output to user
     echo -e "${YELLOW}--- COPY THE PROMPT BELOW ---${NC}"
     cat "$prompt_file"
@@ -362,32 +380,48 @@ EOF
 # 2. RESEARCH
 # -----------------------------------------------------------------
 cmd_research() {
+    local auto_commit="false"
+    if [[ "$1" == "--auto-commit" ]]; then
+        auto_commit="true"
+    fi
     # Includes assignment info + any existing research notes
-    generate_prompt_from_template "3.research.prompt.md" "generated_work/research/*.md"
+    generate_prompt_from_template "3.research.prompt.md" "research" "$auto_commit" "generated_work/research/*.md"
 }
 
 # -----------------------------------------------------------------
 # 3. OUTLINE
 # -----------------------------------------------------------------
 cmd_outline() {
+    local auto_commit="false"
+    if [[ "$1" == "--auto-commit" ]]; then
+        auto_commit="true"
+    fi
     # Includes research notes
-    generate_prompt_from_template "4.outline.prompt.md" "generated_work/research/*.md"
+    generate_prompt_from_template "4.outline.prompt.md" "outline" "$auto_commit" "generated_work/research/*.md"
 }
 
 # -----------------------------------------------------------------
 # 4. DRAFT
 # -----------------------------------------------------------------
 cmd_draft() {
+    local auto_commit="false"
+    if [[ "$1" == "--auto-commit" ]]; then
+        auto_commit="true"
+    fi
     # Includes the outline + research
-    generate_prompt_from_template "5.draft.prompt.md" "generated_work/outline/*.md" "generated_work/research/*.md"
+    generate_prompt_from_template "5.draft.prompt.md" "draft" "$auto_commit" "generated_work/outline/*.md" "generated_work/research/*.md"
 }
 
 # -----------------------------------------------------------------
 # 5. CONVERT
 # -----------------------------------------------------------------
 cmd_convert() {
+    local auto_commit="false"
+    if [[ "$1" == "--auto-commit" ]]; then
+        auto_commit="true"
+    fi
     # Includes the draft text
-    generate_prompt_from_template "6.convert.prompt.md" "generated_work/draft/*.md"
+    generate_prompt_from_template "6.convert.prompt.md" "convert" "$auto_commit" "generated_work/draft/*.md"
 }
 
 # -----------------------------------------------------------------
@@ -395,8 +429,12 @@ cmd_convert() {
 # -----------------------------------------------------------------
 
 cmd_check() {
+    local auto_commit="false"
+    if [[ "$1" == "--auto-commit" ]]; then
+        auto_commit="true"
+    fi
     # Includes build logs or latex source
-    generate_prompt_from_template "tool.check.prompt.md" "latex_source/main.log" "latex_source/*.tex"
+    generate_prompt_from_template "tool.check.prompt.md" "check" "$auto_commit" "latex_source/main.log" "latex_source/*.tex"
 }
 
 # Command: build
@@ -1070,26 +1108,33 @@ case "$1" in
         cmd_new "$@"
         ;;
     plan)
-        cmd_plan
+        shift
+        cmd_plan "$@"
         ;;
     start)
+        shift
         print_warning "Deprecated: 'start' is aliased to 'plan'."
-        cmd_plan
+        cmd_plan "$@"
         ;;
     research)
-        cmd_research
+        shift
+        cmd_research "$@"
         ;;
     outline)
-        cmd_outline
+        shift
+        cmd_outline "$@"
         ;;
     draft)
-        cmd_draft
+        shift
+        cmd_draft "$@"
         ;;
     convert)
-        cmd_convert
+        shift
+        cmd_convert "$@"
         ;;
     check)
-        cmd_check
+        shift
+        cmd_check "$@"
         ;;
     add)
         shift
