@@ -83,33 +83,54 @@ print_header() {
     local title="LaTeXKit v${VERSION}"
     local subtitle="Mission Control"
     
-    # Calculate the width needed (use the longer line)
-    local title_len=${#title}
-    local subtitle_len=${#subtitle}
-    local content_width=$((title_len > subtitle_len ? title_len : subtitle_len))
+    # Define menu items
+    local menu_items=(
+        "1. NEW      (Create Project)"
+        "2. PLAN     (AI Planning)"
+        "3. RESEARCH (AI Research)"
+        "4. OUTLINE  (AI Outlining)"
+        "5. DRAFT    (AI Drafting)"
+        "6. CONVERT  (AI LaTeX Conversion)"
+    )
     
-    # Add padding (4 spaces on each side)
-    local total_width=$((content_width + 12))
+    # Calculate max width
+    local max_len=0
+    for item in "${menu_items[@]}"; do
+        if [[ ${#item} -gt $max_len ]]; then
+            max_len=${#item}
+        fi
+    done
     
-    # Generate horizontal borders dynamically
-    local horizontal_border=$(printf '═%.0s' $(seq 1 $total_width))
-    local separator=$(printf '─%.0s' $(seq 1 $total_width))
+    # Compare with title/subtitle
+    if [[ ${#title} -gt $max_len ]]; then max_len=${#title}; fi
+    if [[ ${#subtitle} -gt $max_len ]]; then max_len=${#subtitle}; fi
     
-    # Calculate padding for centering
-    local title_padding=$(( (total_width - title_len) / 2 ))
-    local subtitle_padding=$(( (total_width - subtitle_len) / 2 ))
+    # Add padding to inner content (e.g. 2 spaces left/right)
+    # The actual text printed is " $item " so +2 chars
+    # We want total_width (inner) to be max_len + padding
+    local inner_width=$((max_len + 4))
+    
+    # Calculate padding for title/subtitle
+    local title_padding=$(( (inner_width - ${#title}) / 2 ))
+    local subtitle_padding=$(( (inner_width - ${#subtitle}) / 2 ))
+    
+    # Borders
+    local horizontal_border=$(printf '═%.0s' $(seq 1 $inner_width))
+    local separator=$(printf '─%.0s' $(seq 1 $inner_width))
     
     echo -e "${MAGENTA}"
     echo "╔${horizontal_border}╗"
-    printf "║%*s%s%*s║\n" $title_padding "" "$title" $((total_width - title_len - title_padding)) ""
-    printf "║%*s%s%*s║\n" $subtitle_padding "" "$subtitle" $((total_width - subtitle_len - subtitle_padding)) ""
+    printf "║%*s%s%*s║\n" $title_padding "" "$title" $((inner_width - ${#title} - title_padding)) ""
+    printf "║%*s%s%*s║\n" $subtitle_padding "" "$subtitle" $((inner_width - ${#subtitle} - subtitle_padding)) ""
     echo "╠${horizontal_border}╣"
-    echo "║ 1. NEW      (Create Project)      ║"
-    echo "║ 2. PLAN     (AI Planning)         ║"
-    echo "║ 3. RESEARCH (AI Research)         ║"
-    echo "║ 4. OUTLINE  (AI Outlining)        ║"
-    echo "║ 5. DRAFT    (AI Drafting)         ║"
-    echo "║ 6. CONVERT  (AI LaTeX Conversion) ║"
+    
+    for item in "${menu_items[@]}"; do
+        # We print " item " (1 space left, dynamic right)
+        # padding = inner_width - 1 (space) - len(item)
+        local right_pad=$((inner_width - 1 - ${#item}))
+        printf "║ %s%*s║\n" "$item" $right_pad ""
+    done
+    
     echo "╚${horizontal_border}╝"
     echo -e "${NC}"
 }
