@@ -24,7 +24,7 @@ This template supports **Main-Only (Trunk-Based) workflow** where all projects l
 
 ## Outline
 
-The text the user typed after `/latexkit.start` is the assignment brief or description. This command initializes the complete assignment workflow.
+The text the user typed after `/latexkit.plan` is the assignment brief or description. This command initializes the complete assignment workflow.
 
 0. **Detect current project** (Main-Only Workflow):
    - Run `.latexkit/scripts/bash/common.sh` function `get_document_paths` to get:
@@ -56,7 +56,7 @@ The text the user typed after `/latexkit.start` is the assignment brief or descr
      - **STOP IMMEDIATELY**. Do not attempt to create folders or files.
      - Inform the user: "No active project found. Please create a new project in the terminal first:"
      - Provide the command: \`./latexkit new "Project Name" --short-name "short-name"\`
-     - Explain: "Once created, run \`/latexkit.start\` again to populate the project metadata."
+     - Explain: "Once created, run \`/latexkit.plan\` again to populate the project metadata."
      - **EXIT**.
 
 2. **Verify Project State**:
@@ -153,7 +153,7 @@ The text the user typed after `/latexkit.start` is the assignment brief or descr
    - Flag any potential concerns (e.g., unclear collaboration policies)
 
 9. **Silent checklist validation at completion**:
-   - Run `.latexkit/scripts/bash/validate-checklists.sh --command start >/dev/null 2>&1` (silent mode)
+   - Run `.latexkit/scripts/bash/validate-checklists.sh --command plan >/dev/null 2>&1` (silent mode)
    - This silently validates and updates the start checklist without CLI output
    - Updates start checklist based on actual project state
    - Marks completed items as done
@@ -173,8 +173,8 @@ The text the user typed after `/latexkit.start` is the assignment brief or descr
    - Check if user included "commit" argument in the command (check $ARGUMENTS for the word "commit")
    - **ONLY proceed with commit if "commit" argument is present**
    - If "commit" argument found, proceed AFTER all work is complete:
-     1. Run `.latexkit/scripts/bash/smart-commit.sh start` from repository root
-        - **CRITICAL**: Pass "start" as the stage parameter to ensure START label
+     1. Run `.latexkit/scripts/bash/smart-commit.sh plan` from repository root
+        - **CRITICAL**: Pass "plan" as the stage parameter to ensure PLAN label
      2. The script will:
         - Auto-stage ALL changes (runs `git add -A`)
         - Use the explicit "start" stage (not auto-detect)
@@ -185,11 +185,11 @@ The text the user typed after `/latexkit.start` is the assignment brief or descr
      4. Use read_file tool to read the complete changes file
      5. Analyze actual file contents and changes
      6. Create descriptive commit message based on real changes:
-        - Format: `START-NN: Descriptive title`
+        - Format: `PLAN-NN: Descriptive title`
         - Body: Specific details from changes file analysis
         - Example:
           ```
-          START-01: Initialize [topic] project with requirements and structure
+          PLAN-01: Initialize [topic] project with requirements and structure
           
           - Created complete project structure with LaTeX source and metadata directories
           - Documented requirements: [specific requirements from start.md]

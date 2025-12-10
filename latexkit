@@ -123,286 +123,14 @@ print_warning() {
 }
 
 # Command: init (formerly start)
-cmd_init() {
-    print_header
-    
-    # Safety Check: Prevent running in Super Repo Root
-    if [[ -f "latexkit" ]] && [[ -d ".latexkit" ]] && [[ -d "documents" ]]; then
-        print_error "You are in the Super Repo Root!"
-        print_info "You should not initialize a project here."
-        print_info "Navigate to a project folder or create a new one with './latexkit new'"
-        exit 1
-    fi
-
-    local layout="academic-assignment"
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --layout)
-                layout="$2"
-                shift 2
-                ;;
-            *)
-                shift
-                ;;
-        esac
-    done
-    
-    # Check if layout exists
-    if [[ ! -d "$REGISTRY_DIR/layouts/$layout" ]]; then
-        print_error "Layout '$layout' not found!"
-        echo ""
-        echo "Available layouts:"
-        ls -1 "$REGISTRY_DIR/layouts/" | sed 's/^/  - /'
-        exit 1
-    fi
-    
-    # Check if already started
-    if [[ -d "latex_source" ]]; then
-        print_warning "Project already initialized!"
-        read -p "Do you want to re-initialize? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 0
-        fi
-        rm -rf latex_source
-    fi
-    
-    echo -e "${CYAN}Initializing LaTeXKit project with layout: ${layout}${NC}"
-    echo ""
-    
-    # Create project structure
-    mkdir -p latex_source/{sections,images}
-    
-    # 1. Copy ONLY the content structure (sections), NOT the core template files
-    print_info "Setting up project structure..."
-    cp -r "$REGISTRY_DIR/layouts/$layout/sections" latex_source/
-    
-    # 2. Create a special main.tex that references the registry
-    print_info "Creating main.tex with template references..."
-    
-    # Read the original main.tex from the registry
-    local original_main="$REGISTRY_DIR/layouts/$layout/main.tex"
-    
-    # Create the new main.tex
-    echo "%!TeX root = main.tex" > latex_source/main.tex
-    echo "%% LATEXKIT CONFIGURATION" >> latex_source/main.tex
-    echo "%% This path points to the shared template registry." >> latex_source/main.tex
-    
-    # Default path logic: assumes we are in the same repo (monorepo style for now)
-    # We need to calculate relative path from here to registry
-    # This is tricky because we don't know depth.
-    # For now, we assume standard depth or rely on user to fix if custom.
-    # Actually, let's try to be smart.
-    local rel_path=""
-    if command -v python3 &>/dev/null; then
-        rel_path=$(python3 -c "import os.path; print(os.path.relpath('$REGISTRY_DIR/layouts/$layout', '$(pwd)/latex_source'))")
-    else
-        # Fallback if python is not available (unlikely on macOS)
-        # We just assume a standard depth of 3 levels up if we can't calculate it
-        rel_path="../../../.latexkit/registry/layouts/$layout"
-    fi
-    
-    echo "\newcommand{\latexKitPath}{$rel_path}" >> latex_source/main.tex
-    echo "" >> latex_source/main.tex
-    
-    cat "$original_main" >> latex_source/main.tex
-    
-    # Patch the inputs to use \latexKitPath
-    sed -i '' 's|\\input{preamble.tex}|\\input{\\latexKitPath/preamble.tex}|g' latex_source/main.tex
-    
-    # Create config file
-    print_info "Creating configuration file..."
-    cat > "$CONFIG_FILE" <<EOF
-{
-  "project": {
-    "name": "My LaTeX Project",
-    "layout": "$layout",
-    "language": "indonesian"
-  },
-  "components": [],
-  "style": {
-    "font": "Times New Roman",
-    "fontSize": "12pt",
-    "lineSpacing": 1.5,
-    "margin": "1in"
-  },
-    "paths": {
-        "source": "latex_source",
-        "output": "build",
-        "bibliography": "zotero_export/<your-export>.bib"
-    }
-}
-EOF
-    
-    print_success "Project initialized successfully!"
-    echo ""
-    echo "Next steps:"
-    echo "  1. Edit latex_source/sections/*.tex with your content"
-    echo "  2. Generate an AI Prompt to start working: ./latexkit start"
+# Command: plan (Generate AI Prompt)
+cmd_plan() {
+    # Includes assignment info + configuration + brief
+    generate_prompt_from_template "latexkit.plan.prompt.md"
 }
 
 # Command: start (Generate AI Prompt)
-cmd_start() {
-    print_header
-    
-    # Check if we are in a project
-    if [[ ! -f "latexkit.config.json" ]]; then
-        # Try to find active project
-        local active=$(get_active_project)
-        
-        # If no active project, ask user to select one
-        if [[ -z "$active" ]]; then
-            print_warning "No active project found."
-            echo "Please select a project to start:"
-            echo ""
-            
-            # List projects and capture selection
-            # We'll use a simple indexed list
-            local projects=()
-            local i=1
-            
-            # Find all projects
-            while IFS= read -r dir; do
-                if [[ -d "$dir" && ( -f "$dir/start.md" || -f "$dir/latexkit.config.json" ) ]]; then
-                    projects+=("$dir")
-                    local dirname=$(basename "$dir")
-                    echo "  [$i] $dirname"
-                    ((i++))
-                fi
-            done < <(find "$PROJECT_ROOT/documents" -maxdepth 2 -type d -not -path '*/.*')
-            
-            if [[ ${#projects[@]} -eq 0 ]]; then
-                print_error "No projects found in documents/!"
-                exit 1
-            fi
-            
-            echo ""
-            read -p "Enter number (1-$((i-1))): " -r selection
-            
-            if [[ "$selection" =~ ^[0-9]+$ ]] && (( selection >= 1 && selection < i )); then
-                local selected_dir="${projects[$((selection-1))]}"
-                local selected_id=$(basename "$selected_dir")
-                
-                # Set as active
-                set_workspace_state "ACTIVE_PROJECT" "$selected_id"
-                active="$selected_id"
-                print_success "Selected project: $active"
-                echo ""
-            else
-                print_error "Invalid selection."
-                exit 1
-            fi
-        fi
 
-        if [[ -n "$active" ]]; then
-             local project_dir=""
-            if declare -f find_document_dir_by_id >/dev/null; then
-                project_dir=$(find_document_dir_by_id "$PROJECT_ROOT" "$active")
-            else
-                project_dir="$PROJECT_ROOT/documents/$active"
-            fi
-            
-            if [[ -n "$project_dir" && -d "$project_dir" ]]; then
-                print_info "Switching context to active project: $active"
-                (cd "$project_dir" && cmd_start)
-                return $?
-            fi
-        fi
-        
-        print_error "Could not locate project directory for: $active"
-        exit 1
-    fi
-    
-    echo -e "${CYAN}Generating AI Agent Prompt...${NC}"
-    echo ""
-    
-    local project_name="Untitled Project"
-    if command -v jq &> /dev/null; then
-        project_name=$(jq -r '.project.name // "Untitled Project"' latexkit.config.json)
-    fi
-    
-    local start_content=""
-    if [[ -f "start.md" ]]; then
-        start_content=$(cat "start.md")
-    else
-        start_content="(No start.md found)"
-    fi
-    
-    local config_content=$(cat latexkit.config.json)
-    
-    # Scan assignment_info for context files
-    local context_files_list=""
-    if [[ -d "assignment_info" ]]; then
-        context_files_list=$(find assignment_info -type f -not -name '.gitkeep' | sed 's/^/   - /')
-    fi
-    if [[ -z "$context_files_list" ]]; then
-        context_files_list="   (No context files found in assignment_info)"
-    fi
-
-    # Construct the prompt
-    local prompt_file=$(mktemp)
-    
-    cat > "$prompt_file" <<EOF
-You are an AI assistant helping with a LaTeX project.
-
-# Project Context
-**Project Name**: $project_name
-**Path**: $(pwd)
-
-## Configuration (latexkit.config.json)
-\`\`\`json
-$config_content
-\`\`\`
-
-## Project Brief (start.md)
-\`\`\`markdown
-$start_content
-\`\`\`
-
-## Assignment Context (assignment_info)
-The following files contain the assignment details, rubrics, and reference materials. 
-**CRITICAL**: You must read these files to understand the requirements.
-$context_files_list
-
-## Directory Structure
-\`\`\`
-$(ls -R | grep ":$" | head -n 20 | sed 's/:$//' | sed 's/[^-][^\/]*\//--/g' | sed 's/^/   /' | sed 's/-/|/')
-(truncated)
-\`\`\`
-
-# Task
-I am ready to start working on this assignment. 
-Please review the 'Project Brief', 'Configuration', and the files listed in 'Assignment Context'.
-
-**Your Goal**: Help me execute this assignment accurately and efficiently.
-
-**Step 1: Analysis & Clarification**
-1.  **Read Context**: Analyze the files in \`assignment_info\` to understand the exact requirements and grading criteria.
-2.  **Cross-Check**: Compare the requirements against the current project state.
-3.  **Clarify**: If any information is missing, ambiguous, or if you need specific instructions (e.g., "What is the deadline?", "What is the target length?"), ASK ME NOW. Do not make assumptions.
-
-**Step 2: Execution Plan**
-Once we are aligned, propose a logical next step (e.g., creating an outline, drafting a specific section, or setting up the bibliography).
-
-If you need to run commands, use the \`./latexkit\` CLI.
-EOF
-
-    # Output to user
-    echo -e "${YELLOW}--- COPY THE PROMPT BELOW ---${NC}"
-    cat "$prompt_file"
-    echo -e "${YELLOW}-----------------------------${NC}"
-    
-    # Optional: Copy to clipboard (macOS only)
-    if command -v pbcopy &> /dev/null; then
-        cat "$prompt_file" | pbcopy
-        echo ""
-        print_success "Prompt copied to clipboard!"
-    fi
-    
-    rm "$prompt_file"
-}
 
 # Command: add
 cmd_add() {
@@ -616,9 +344,10 @@ EOF
 }
 
 # -----------------------------------------------------------------
-# 1. START (Already defined as cmd_start, but expanded here for consistency)
+# 1. PLAN (formerly start)
 # -----------------------------------------------------------------
-# cmd_start is defined above.
+# cmd_plan is defined above.
+
 
 # -----------------------------------------------------------------
 # 2. RESEARCH
@@ -1037,7 +766,7 @@ EOF
     echo ""
     echo "Next steps:"
     echo "  1. Edit $project_dir/start.md with project details"
-    echo "  2. Run './latexkit start' to generate an AI Agent Prompt"
+    echo "  2. Run './latexkit plan' to generate an AI Agent Prompt"
     echo "  3. Or use ./latexkit build to compile"
     echo ""
     echo "Switch projects anytime with: ./latexkit switch $project_id"
@@ -1316,8 +1045,12 @@ case "$1" in
         shift
         cmd_new "$@"
         ;;
+    plan)
+        cmd_plan
+        ;;
     start)
-        cmd_start
+        print_warning "Deprecated: 'start' is aliased to 'plan'."
+        cmd_plan
         ;;
     research)
         cmd_research
@@ -1356,13 +1089,14 @@ case "$1" in
         # Define inline or load from common
         if [[ -z "$1" ]]; then
             print_warning "Usage: ./latexkit switch <project-id>"
-            list_projects
+            print_warning "Usage: ./latexkit switch <project-id>"
+            cmd_projects
             exit 1
         fi
-        set_active_project "$1"
+        cmd_switch "$1"
         ;;
     projects)
-        list_projects
+        cmd_projects
         ;;
     help|--help|-h)
         print_header
@@ -1370,7 +1104,7 @@ case "$1" in
         echo ""
         echo "Workflow Commands (Sequential):"
         echo "  1. new       Create a new project"
-        echo "  2. start     [AI] Generate plan & initial prompt"
+        echo "  2. plan      [AI] Generate plan & initial prompt (formerly start)"
         echo "  3. research  [AI] Generate prompt for research phase"
         echo "  4. outline   [AI] Generate prompt for outlining phase"
         echo "  5. draft     [AI] Generate prompt for drafting phase"

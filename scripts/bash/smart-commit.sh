@@ -19,13 +19,13 @@ get_workflow_stage() {
     if [[ -n "$stage_arg" ]]; then
         local upper_stage=$(echo "$stage_arg" | tr '[:lower:]' '[:upper:]')
         case "$upper_stage" in
-            START|CLARIFY|RESEARCH|OUTLINE|DRAFT|CONVERT|BUILD|CHECK|FIX|REFACTOR|DOCS|FEAT|CHORE)
+            START|PLAN|CLARIFY|RESEARCH|OUTLINE|DRAFT|CONVERT|BUILD|CHECK|FIX|REFACTOR|DOCS|FEAT|CHORE)
                 echo "$upper_stage"
                 return 0
                 ;;
             *)
                 error "Invalid workflow stage: $stage_arg"
-                error "Valid stages: start, clarify, research, outline, draft, convert, build, check, fix, refactor, docs, feat, chore"
+                error "Valid stages: start, plan, clarify, research, outline, draft, convert, build, check, fix, refactor, docs, feat, chore"
                 return 1
                 ;;
         esac
@@ -37,7 +37,11 @@ get_workflow_stage() {
     # Prioritize detection based on artifacts and file patterns
     # Each workflow command creates specific artifacts that indicate the phase
     
-    # START: Initial project setup - checklist is first artifact created
+    # PLAN/START: Initial project setup
+    if echo "$all_files" | grep -q "checklists/latexkit\.plan\.md"; then
+        echo "PLAN"
+        return 0
+    fi
     if echo "$all_files" | grep -q "checklists/latexkit\.start\.md"; then
         # Check if this is the first time start checklist is created
         if ! git log --all --oneline -- "*checklists/latexkit.start.md" 2>/dev/null | grep -q "."; then
@@ -49,7 +53,7 @@ get_workflow_stage() {
     # START: Alternative detection - start.md being created for first time
     if echo "$all_files" | grep -q "start\.md"; then
         if ! git log --all --oneline -- "*start.md" 2>/dev/null | grep -q "."; then
-            echo "START"
+            echo "PLAN"
             return 0
         fi
     fi
@@ -481,7 +485,7 @@ Usage: $0 [STAGE] [OPTIONS]
 Create intelligent commits with automatic workflow labeling and iteration numbering.
 
 ARGUMENTS:
-  STAGE                 Workflow stage (start, clarify, research, outline, draft, 
+  STAGE                 Workflow stage (plan, clarify, research, outline, draft, 
                         convert, build, check, fix, refactor, docs, feat, chore)
                         **RECOMMENDED**: Always specify the stage explicitly for consistency.
                         If omitted, auto-detects from changed files (may be inconsistent).
@@ -501,7 +505,7 @@ SEQUENTIAL NUMBERING:
   - Only counts commits created on this branch (not inherited from main)
   - On main/master: always starts from 01 for new documents
   - Branch isolation ensures clean, independent sequences
-  - Sequential across ALL stages: START-01, RESEARCH-02, OUTLINE-03, DRAFT-04, etc.
+  - Sequential across ALL stages: PLAN-01, RESEARCH-02, OUTLINE-03, DRAFT-04, etc.
 
 BEST PRACTICES:
   - **Always specify the stage explicitly**: $0 start, $0 research, $0 draft
@@ -510,8 +514,8 @@ BEST PRACTICES:
 
 EXAMPLES:
   # Explicit stage (RECOMMENDED) - auto-stages all changes
-  $0 start
-  # Result: START-01 (if first commit on this branch)
+  $0 plan
+  # Result: PLAN-01 (if first commit on this branch)
 
   # Explicit stage with sequential numbering
   $0 research
@@ -530,7 +534,8 @@ EXAMPLES:
   # Result: OUTLINE-04: Restructure argument flow
 
 WORKFLOW STAGES:
-  start      - Initial project setup and start file creation
+  plan       - Initial project setup and plan creation (formerly start)
+  start      - Alias for plan (deprecated)
   clarify    - Resolve ambiguities in start.md
   research   - Research planning and source gathering
   outline    - Content structure and organization
@@ -555,7 +560,7 @@ COMMIT FORMAT:
   Each branch has independent numbering starting from 01.
 
 EXAMPLES OUTPUT:
-  START-01: Initial project setup
+  PLAN-01: Initial project setup
   
   - Created project structure
   - Added start file

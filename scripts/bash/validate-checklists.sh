@@ -37,7 +37,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --json              Output results in JSON format"
-            echo "  --command <name>    Focus on specific command checklist (start, clarify, research, outline, draft, convert)"
+            echo "  --command <name>    Focus on specific command checklist (plan, clarify, research, outline, draft, convert)"
             exit 0
             ;;
         *)
@@ -132,15 +132,15 @@ update_checklist_timestamp() {
     sed -i "s/\*\*Last Validated\*\*:.*/\*\*Last Validated\*\*: \`$today\`/g" "$checklist_file"
 }
 
-# Function to validate start checklist
-validate_start_checklist() {
-    local checklist="${CHECKLISTS_DIR}/latexkit.start.md"
+# Function to validate plan checklist
+validate_plan_checklist() {
+    local checklist="${CHECKLISTS_DIR}/latexkit.plan.md"
     
     if [ ! -f "$checklist" ]; then
         return
     fi
     
-    log "Validating start checklist..."
+    log "Validating plan checklist..."
     local issues=0
     
     # Check document structure
@@ -162,7 +162,7 @@ validate_start_checklist() {
     # These files are optional at this stage
     
     update_checklist_timestamp "$checklist"
-    RESULT_NAMES+=("start")
+    RESULT_NAMES+=("plan")
     RESULT_VALUES+=($issues)
     return $issues
 }
@@ -179,9 +179,9 @@ validate_clarify_checklist() {
     local issues=0
     
     # Check prerequisites
-    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Project initialized via.*latexkit.start" "true" || ((issues++))
+    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Project initialized via.*latexkit.plan" "true" || ((issues++))
     [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "\`start.md\` file exists and is readable" "true" || ((issues++))
-    [ -f "${CHECKLISTS_DIR}/latexkit.start.md" ] && mark_checklist_item "$checklist" "Start checklist completed" "true" || ((issues++))
+    [ -f "${CHECKLISTS_DIR}/latexkit.plan.md" ] && mark_checklist_item "$checklist" "Plan checklist completed" "true" || ((issues++))
     [ -d "$DOCUMENT_DIR" ] && mark_checklist_item "$checklist" "No critical structural issues in project directory" "true" || ((issues++))
     
     # Check clarifications section
@@ -220,7 +220,7 @@ validate_research_checklist() {
     local issues=0
     
     # Check prerequisites
-    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Start command completed" "true" || ((issues++))
+    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Plan command completed" "true" || ((issues++))
     
     # Check research plan
     if [ -n "$(ls -A "${DOCUMENT_DIR}/generated_work/research/" 2>/dev/null | grep -i 'research-plan')" ]; then
@@ -260,7 +260,7 @@ validate_outline_checklist() {
     local issues=0
     
     # Check prerequisites
-    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Start command completed" "true" || ((issues++))
+    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Plan command completed" "true" || ((issues++))
     
     # Check outline file
     if [ -n "$(ls -A "${DOCUMENT_DIR}/generated_work/outlines/" 2>/dev/null | grep -i 'outline')" ]; then
@@ -292,7 +292,7 @@ validate_draft_checklist() {
     local issues=0
     
     # Check prerequisites
-    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Start command completed" "true" || ((issues++))
+    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Plan command completed" "true" || ((issues++))
     
     # Check outline
     if [ -n "$(ls -A "${DOCUMENT_DIR}/generated_work/outlines/" 2>/dev/null)" ]; then
@@ -331,7 +331,7 @@ validate_convert_checklist() {
     local issues=0
     
     # Check prerequisites
-    [ -d "${DOCUMENT_DIR}/latex_source" ] && mark_checklist_item "$checklist" "Start command completed.*structure exists" "true" || ((issues++))
+    [ -d "${DOCUMENT_DIR}/latex_source" ] && mark_checklist_item "$checklist" "Plan command completed.*structure exists" "true" || ((issues++))
     
     # Check drafts
     if [ -n "$(ls -A "${DOCUMENT_DIR}/generated_work/drafts/" 2>/dev/null)" ]; then
@@ -376,8 +376,13 @@ validate_all_checklists() {
     if [ -n "$COMMAND_NAME" ]; then
         # Validate specific command checklist
         case "$COMMAND_NAME" in
+            plan)
+                validate_plan_checklist
+                TOTAL_CHECKLISTS=1
+                ;;
             start)
-                validate_start_checklist
+                log "Note: 'start' is deprecated, validating 'plan' checklist instead."
+                validate_plan_checklist
                 TOTAL_CHECKLISTS=1
                 ;;
             clarify)
@@ -407,7 +412,7 @@ validate_all_checklists() {
         esac
     else
         # Validate all checklists
-        [ -f "${CHECKLISTS_DIR}/latexkit.start.md" ] && { validate_start_checklist; ((TOTAL_CHECKLISTS++)); }
+        [ -f "${CHECKLISTS_DIR}/latexkit.plan.md" ] && { validate_plan_checklist; ((TOTAL_CHECKLISTS++)); }
         [ -f "${CHECKLISTS_DIR}/latexkit.clarify.md" ] && { validate_clarify_checklist; ((TOTAL_CHECKLISTS++)); }
         [ -f "${CHECKLISTS_DIR}/latexkit.research.md" ] && { validate_research_checklist; ((TOTAL_CHECKLISTS++)); }
         [ -f "${CHECKLISTS_DIR}/latexkit.outline.md" ] && { validate_outline_checklist; ((TOTAL_CHECKLISTS++)); }
