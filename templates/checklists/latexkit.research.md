@@ -8,7 +8,7 @@
 ---
 
 ## Prerequisites (from previous commands)
-- [ ] Start command completed (start.md exists)
+- [ ] Plan command completed (plan.md exists)
 - [ ] Project structure validated
 - [ ] Assignment requirements clear
 

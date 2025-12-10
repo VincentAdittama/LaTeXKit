@@ -8,21 +8,21 @@
 ---
 
 ## Prerequisites (from previous commands)
-- [ ] Start command completed (latex_source/ structure exists)
+- [ ] Plan command completed (latex_source/ structure exists)
 - [ ] Draft command completed (reviewed draft ready)
 - [ ] Project structure validated
 - [ ] Human review of draft completed
 
 ## Conversion Setup
 - [ ] Final reviewed draft located in `generated_work/drafts/`
-- [ ] **Final Document Language** confirmed from start.md (Indonesian/English/Bilingual)
+- [ ] **Final Document Language** confirmed from plan.md (Indonesian/English/Bilingual)
 - [ ] Language transformation requirements identified (if draft ≠ final language)
 - [ ] LaTeX source directory accessible
 - [ ] Conversion guide template loaded
 - [ ] Preamble.tex packages and commands reviewed
 
 ## Metadata Generation
-- [ ] main.tex metadata populated from start.md
+- [ ] main.tex metadata populated from plan.md
 - [ ] Document title command created (`\docTitle`)
 - [ ] Course/context commands created (if applicable)
 - [ ] Author information formatted correctly
@@ -31,7 +31,7 @@
 - [ ] Date formatted correctly (Month Day, Year)
 
 ## Content Conversion
-- [ ] **Document language enforced**: ALL content matches "Final Document Language" from start.md
+- [ ] **Document language enforced**: ALL content matches "Final Document Language" from plan.md
 - [ ] Language transformation completed (if draft language ≠ final language)
 - [ ] Section headings translated to target language (e.g., "Introduction" → "Pendahuluan")
 - [ ] Body paragraphs translated while preserving academic tone and meaning

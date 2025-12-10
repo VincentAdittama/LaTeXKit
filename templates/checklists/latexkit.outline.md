@@ -8,8 +8,7 @@
 ---
 
 ## Prerequisites (from previous commands)
-## Prerequisites (from previous commands)
-- [ ] Start command completed (start.md exists)
+- [ ] Plan command completed (plan.md exists)
 - [ ] Research phase completed (research plan exists)
 - [ ] Project structure validated
 - [ ] Sources gathered (if academic document)

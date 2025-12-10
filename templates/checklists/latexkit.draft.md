@@ -8,7 +8,7 @@
 ---
 
 ## Prerequisites (from previous commands)
-- [ ] Start command completed (start.md exists)
+- [ ] Plan command completed (plan.md exists)
 - [ ] Research command completed (if academic)
 - [ ] Outline command completed (outline file exists)
 - [ ] Project structure validated

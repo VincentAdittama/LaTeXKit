@@ -8,18 +8,13 @@
 ---
 
 ## ✅ Pre-Checks (Setup)
-- [ ] Document directory structure created
-- [ ] Start file (`start.md`) exists with complete metadata
-- [ ] LaTeX source directory initialized (`latex_source/`)
-- [ ] Checklists directory (`checklists/`) created
-- [x] Complete directory structure created
+- [ ] Complete directory structure created
   - `checklists/`, `latex_source/`, `build/`
   - `assignment_info/`, `zotero_export/`
   - `generated_work/` with subdirectories
-- [ ] Generated work directories exist (research, outlines, drafts, conversion, compilation, reviews)
-- [ ] Zotero export directory (`zotero_export/`) ready
+- [ ] Plan file (`plan.md`) exists with complete metadata
 
-## Start File Completeness
+## Plan File Completeness
 - [ ] All required sections filled
 - [ ] Document metadata complete
 - [ ] Requirements clearly defined
