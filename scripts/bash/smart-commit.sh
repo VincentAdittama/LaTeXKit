@@ -50,6 +50,14 @@ get_workflow_stage() {
         fi
     fi
     
+    # START: Alternative detection - plan.md being created for first time
+    if echo "$all_files" | grep -q "generated_work/plan\.md" || echo "$all_files" | grep -q "^plan\.md"; then
+        if ! git log --all --oneline -- "*plan.md" 2>/dev/null | grep -q "."; then
+            echo "PLAN"
+            return 0
+        fi
+    fi
+    
     # START: Alternative detection - start.md being created for first time
     if echo "$all_files" | grep -q "start\.md"; then
         if ! git log --all --oneline -- "*start.md" 2>/dev/null | grep -q "."; then
@@ -536,7 +544,7 @@ EXAMPLES:
 WORKFLOW STAGES:
   plan       - Initial project setup and plan creation (formerly start)
   start      - Alias for plan (deprecated)
-  clarify    - Resolve ambiguities in start.md
+  clarify    - Resolve ambiguities in plan.md
   research   - Research planning and source gathering
   outline    - Content structure and organization
   draft      - Writing and drafting content

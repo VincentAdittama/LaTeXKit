@@ -49,8 +49,14 @@ echo "" >> "$OUTPUT_FILE"
 # 4. INGESTION: Baca Konteks File (Kunci dari requestmu!)
 echo "# PROJECT CONTEXT FILES" >> "$OUTPUT_FILE"
 
-# 4a. Baca start.md (State saat ini)
-if [ -f "${DOCUMENT_DIR}/start.md" ]; then
+# 4a. Baca plan.md (State saat ini)
+if [ -f "${DOCUMENT_DIR}/generated_work/plan.md" ]; then
+    echo "## Current State (plan.md):" >> "$OUTPUT_FILE"
+    cat "${DOCUMENT_DIR}/generated_work/plan.md" >> "$OUTPUT_FILE"
+elif [ -f "${DOCUMENT_DIR}/plan.md" ]; then
+    echo "## Current State (plan.md):" >> "$OUTPUT_FILE"
+    cat "${DOCUMENT_DIR}/plan.md" >> "$OUTPUT_FILE"
+elif [ -f "${DOCUMENT_DIR}/start.md" ]; then
     echo "## Current State (start.md):" >> "$OUTPUT_FILE"
     cat "${DOCUMENT_DIR}/start.md" >> "$OUTPUT_FILE"
     echo "" >> "$OUTPUT_FILE"

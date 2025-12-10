@@ -145,7 +145,7 @@ validate_plan_checklist() {
     
     # Check document structure
     [ -d "$DOCUMENT_DIR" ] && mark_checklist_item "$checklist" "Document directory structure created" "true" || ((issues++))
-    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Start file.*exists" "true" || ((issues++))
+    [ -f "${DOCUMENT_DIR}/generated_work/plan.md" ] && mark_checklist_item "$checklist" "Start file.*exists" "true" || ((issues++))
     [ -d "${DOCUMENT_DIR}/latex_source" ] && mark_checklist_item "$checklist" "LaTeX source directory.*initialized" "true" || ((issues++))
     # Note: .latexmkrc is imported during convert phase, not start phase
     [ -d "$CHECKLISTS_DIR" ] && mark_checklist_item "$checklist" "Checklists directory.*created" "true" || ((issues++))
@@ -179,22 +179,22 @@ validate_clarify_checklist() {
     local issues=0
     
     # Check prerequisites
-    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Project initialized via.*latexkit.plan" "true" || ((issues++))
-    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "\`start.md\` file exists and is readable" "true" || ((issues++))
+    [ -f "${DOCUMENT_DIR}/generated_work/plan.md" ] && mark_checklist_item "$checklist" "Project initialized via.*latexkit.plan" "true" || ((issues++))
+    [ -f "${DOCUMENT_DIR}/generated_work/plan.md" ] && mark_checklist_item "$checklist" "\`start.md\` file exists and is readable" "true" || ((issues++))
     [ -f "${CHECKLISTS_DIR}/latexkit.plan.md" ] && mark_checklist_item "$checklist" "Plan checklist completed" "true" || ((issues++))
     [ -d "$DOCUMENT_DIR" ] && mark_checklist_item "$checklist" "No critical structural issues in project directory" "true" || ((issues++))
     
     # Check clarifications section
-    if grep -q "## Clarifications" "${DOCUMENT_DIR}/start.md" 2>/dev/null; then
-        mark_checklist_item "$checklist" "\`## Clarifications\` section added to start.md" "true"
+    if grep -q "## Clarifications" "${DOCUMENT_DIR}/generated_work/plan.md" 2>/dev/null; then
+        mark_checklist_item "$checklist" "\`## Clarifications\` section added to plan.md" "true"
         mark_checklist_item "$checklist" "All Q&A pairs documented" "true"
     else
         ((issues++))
     fi
     
     # Check for reduced clarification markers (both NEEDS and NEED patterns)
-    local needs_count=$(grep -c "\[NEEDS CLARIFICATION" "${DOCUMENT_DIR}/start.md" 2>/dev/null || echo "0")
-    local need_count=$(grep -c "\[NEED CLARIFICATION" "${DOCUMENT_DIR}/start.md" 2>/dev/null || echo "0")
+    local needs_count=$(grep -c "\[NEEDS CLARIFICATION" "${DOCUMENT_DIR}/generated_work/plan.md" 2>/dev/null || echo "0")
+    local need_count=$(grep -c "\[NEED CLARIFICATION" "${DOCUMENT_DIR}/generated_work/plan.md" 2>/dev/null || echo "0")
     local clarification_count=$((needs_count + need_count))
     if [ "$clarification_count" -le 3 ]; then
         mark_checklist_item "$checklist" "Clarification markers resolved or reduced" "true"
@@ -220,7 +220,7 @@ validate_research_checklist() {
     local issues=0
     
     # Check prerequisites
-    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Plan command completed" "true" || ((issues++))
+    [ -f "${DOCUMENT_DIR}/generated_work/plan.md" ] && mark_checklist_item "$checklist" "Plan command completed" "true" || ((issues++))
     
     # Check research plan
     if [ -n "$(ls -A "${DOCUMENT_DIR}/generated_work/research/" 2>/dev/null | grep -i 'research-plan')" ]; then
@@ -260,7 +260,7 @@ validate_outline_checklist() {
     local issues=0
     
     # Check prerequisites
-    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Plan command completed" "true" || ((issues++))
+    [ -f "${DOCUMENT_DIR}/generated_work/plan.md" ] && mark_checklist_item "$checklist" "Plan command completed" "true" || ((issues++))
     
     # Check outline file
     if [ -n "$(ls -A "${DOCUMENT_DIR}/generated_work/outlines/" 2>/dev/null | grep -i 'outline')" ]; then
@@ -292,7 +292,7 @@ validate_draft_checklist() {
     local issues=0
     
     # Check prerequisites
-    [ -f "${DOCUMENT_DIR}/start.md" ] && mark_checklist_item "$checklist" "Plan command completed" "true" || ((issues++))
+    [ -f "${DOCUMENT_DIR}/generated_work/plan.md" ] && mark_checklist_item "$checklist" "Plan command completed" "true" || ((issues++))
     
     # Check outline
     if [ -n "$(ls -A "${DOCUMENT_DIR}/generated_work/outlines/" 2>/dev/null)" ]; then

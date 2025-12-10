@@ -195,8 +195,8 @@ get_active_project() {
         for dir in "$docs_dir"/*; do
             if [[ -d "$dir" ]]; then
                 local dirname=$(basename "$dir")
-                # Check if it is a project (has start.md or config)
-                if [[ -f "$dir/start.md" || -f "$dir/latexkit.config.json" ]]; then
+                # Check if it is a project (has generated_work/plan.md, plan.md, start.md or config)
+                if [[ -f "$dir/generated_work/plan.md" || -f "$dir/plan.md" || -f "$dir/start.md" || -f "$dir/latexkit.config.json" ]]; then
                     # Get modification time
                     local mtime
                     if [[ "$(uname)" == "Darwin" ]]; then
@@ -289,14 +289,14 @@ list_projects() {
     for dir in "$docs_dir"/*; do
         if [[ -d "$dir" ]]; then
             local dirname=$(basename "$dir")
-            if [[ -f "$dir/start.md" || -f "$dir/latexkit.config.json" ]]; then
+            if [[ -f "$dir/generated_work/plan.md" || -f "$dir/plan.md" || -f "$dir/start.md" || -f "$dir/latexkit.config.json" ]]; then
                 print_project "$dir" "  "
             elif [[ ! "$dirname" =~ ^\. ]]; then
                 # Possible semester folder (not hidden, not a project)
                 # Check if it contains projects
                 local has_projects=false
                 for subdir in "$dir"/*; do
-                    if [[ -d "$subdir" && (-f "$subdir/start.md" || -f "$subdir/latexkit.config.json") ]]; then
+                    if [[ -d "$subdir" && (-f "$subdir/generated_work/plan.md" || -f "$subdir/plan.md" || -f "$subdir/start.md" || -f "$subdir/latexkit.config.json") ]]; then
                         has_projects=true
                         break
                     fi
@@ -446,8 +446,8 @@ CURRENT_BRANCH='$current_branch'
 ACTIVE_PROJECT='$active_project'
 HAS_GIT='$has_git_repo'
 DOCUMENT_DIR='$document_dir'
-DOCUMENT_SPEC='$document_dir/start.md'
-LATEX_PLAN='$document_dir/plan.md'
+DOCUMENT_SPEC='$document_dir/generated_work/plan.md'
+LATEX_PLAN='$document_dir/generated_work/plan.md'
 TASKS='$document_dir/tasks.md'
 CONTENT_OUTLINE='$document_dir/outline.md'
 BIBLIOGRAPHY='$document_dir/bibliography.bib'
@@ -501,7 +501,7 @@ validate_project_structure() {
     
     # Required files (note: .latexmkrc is imported during convert phase, not start)
     local required_files=(
-        "$document_dir/start.md"
+        "$document_dir/generated_work/plan.md"
     )
     
     # Required directories

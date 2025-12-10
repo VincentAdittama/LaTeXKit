@@ -246,8 +246,9 @@ generate_prompt_from_template() {
          config_content=$(cat latexkit.config.json)
     fi
 
-    local start_content="(No start.md found)"
-    [[ -f "start.md" ]] && start_content=$(cat "start.md")
+    local start_content="(No plan.md found)"
+    [[ -f "generated_work/plan.md" ]] && start_content=$(cat "generated_work/plan.md")
+    [[ -f "plan.md" && "$start_content" == "(No plan.md found)" ]] && start_content=$(cat "plan.md")
 
     # 2. Gather Context Files (Assignment Info is ALWAYS included)
     local assignment_context=""
@@ -590,7 +591,7 @@ cmd_new() {
                         if [[ -d "$dir" ]]; then
                             local dirname=$(basename "$dir")
                             # Check if it looks like a semester (not a project)
-                            if [[ ! "$dirname" =~ ^\. && ! -f "$dir/start.md" && ! -f "$dir/latexkit.config.json" ]]; then
+                            if [[ ! "$dirname" =~ ^\. && ! -f "$dir/generated_work/plan.md" && ! -f "$dir/plan.md" && ! -f "$dir/start.md" && ! -f "$dir/latexkit.config.json" ]]; then
                                 candidates+=("$dirname")
                             fi
                         fi
@@ -693,9 +694,10 @@ EOF
     # Patch preamble input to use latexKitPath
     sed -i '' 's|\\input{preamble.tex}|\\input{\\latexKitPath/preamble.tex}|g' "$project_dir/latex_source/main.tex"
     
-    # Create basic start.md
+    # Create basic plan.md
+    mkdir -p "$project_dir/generated_work"
     local today=$(date +%Y-%m-%d)
-    cat > "$project_dir/start.md" <<EOF
+    cat > "$project_dir/generated_work/plan.md" <<EOF
 # Project Start File: $description
 
 **Document ID**: \`$project_id\`  
@@ -703,9 +705,9 @@ EOF
 **Status**: \`Draft\`
 EOF
     if [[ -n "$semester" ]]; then
-        echo "**Semester**: \`$semester\`" >> "$project_dir/start.md"
+        echo "**Semester**: \`$semester\`" >> "$project_dir/generated_work/plan.md"
     fi
-    cat >> "$project_dir/start.md" <<EOF
+    cat >> "$project_dir/generated_work/plan.md" <<EOF
 
 ---
 
@@ -765,7 +767,7 @@ EOF
     echo -e "${GREEN}Project '$project_id' is now active!${NC}"
     echo ""
     echo "Next steps:"
-    echo "  1. Edit $project_dir/start.md with project details"
+    echo "  1. Edit $project_dir/generated_work/plan.md with project details"
     echo "  2. Run './latexkit plan' to generate an AI Agent Prompt"
     echo "  3. Or use ./latexkit build to compile"
     echo ""
@@ -847,7 +849,8 @@ cmd_switch() {
     print_success "Switched to project: $real_project_id"
     
     # Show project info
-    local start_file="$project_dir/start.md"
+    local start_file="$project_dir/generated_work/plan.md"
+    [[ ! -f "$start_file" ]] && start_file="$project_dir/plan.md"
     if [[ -f "$start_file" ]]; then
         local title=$(head -5 "$start_file" | grep "^# " | head -1 | sed 's/^# //')
         if [[ -n "$title" ]]; then
@@ -920,7 +923,8 @@ cmd_current() {
         # Fallback
         project_dir="$PROJECT_ROOT/documents/$active"
     fi
-    local start_file="$project_dir/start.md"
+    local start_file="$project_dir/generated_work/plan.md"
+    [[ ! -f "$start_file" ]] && start_file="$project_dir/plan.md"
     
     if [[ -f "$start_file" ]]; then
         local title=$(head -5 "$start_file" | grep "^# " | head -1 | sed 's/^# Project Start File: //')
@@ -942,7 +946,7 @@ cmd_reset() {
     echo ""
     
     echo -e "${CYAN}What would you like to reset?${NC}"
-    echo "  [1] Active Project (Reset to template state, keep start.md/config)"
+    echo "  [1] Active Project (Reset to template state, keep plan.md/config)"
     echo "  [2] All Projects (Delete everything in documents/)"
     echo "  [3] Cancel"
     echo ""

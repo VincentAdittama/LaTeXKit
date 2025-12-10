@@ -27,29 +27,12 @@ This template supports **Main-Only (Trunk-Based) workflow** where all projects l
 The text the user typed after `/latexkit.plan` is the assignment brief or description. This command initializes the complete assignment workflow.
 
 0. **Detect current project** (Main-Only Workflow):
-   - Run `.latexkit/scripts/bash/common.sh` function `get_document_paths` to get:
-     - `ACTIVE_PROJECT` - current active project ID (from .active_project file)
-     - `DOCUMENT_DIR` - full path to project directory
-   - **If ACTIVE_PROJECT is set and DOCUMENT_DIR exists**: Switch to "edit mode" (steps 0a-0c)
-   - **If no active project**: Report error and instruct user to create project via CLI (Step 1)
-
-0a. **Edit mode: Detect existing project**:
-   - Set `CURRENT_PROJECT` to active project name (format: `NNN-project-name`)
-   - Set `DOCUMENT_DIR` to `documents/$CURRENT_PROJECT/`
-   - If `DOCUMENT_DIR` doesn't exist, report error and suggest creating new project
-
-0b. **Edit mode: Validate and update current implementation**:
-   - Run validation: `.latexkit/scripts/bash/validate-structure.sh "$DOCUMENT_DIR"`
-   - Check for missing files and recreate if needed
-   - Read existing `start.md` and update with any new information from user input
-   - Verify checklist completeness and update if needed
-   - Check LaTeX structure integrity
-
-0c. **Edit mode: Report status**:
-   - Confirm current project and document directory
-   - Report validation results
-   - Suggest next steps based on current progress
-   - Exit (do not proceed to creation steps)
+   - **Execute this exact command** (do not modify):
+     ```bash
+     source .latexkit/scripts/bash/common.sh && eval $(get_document_paths) && echo "ACTIVE_PROJECT=$ACTIVE_PROJECT" && echo "DOCUMENT_DIR=$DOCUMENT_DIR"
+     ```
+   - **If ACTIVE_PROJECT is empty**: Report error and instruct user to create project via CLI (Step 1)
+   - **If ACTIVE_PROJECT is set**: Check project state and proceed to populating metadata (Step 2 onward).
 
 1. **Handle "No Active Project" Case**:
    - If `ACTIVE_PROJECT` is empty or the directory doesn't exist:
@@ -61,9 +44,9 @@ The text the user typed after `/latexkit.plan` is the assignment brief or descri
 
 2. **Verify Project State**:
    - Confirm we are in `documents/$ACTIVE_PROJECT/`
-   - If `start.md` already has content (not just the template), ask if user wants to overwrite or update.
+   - If `generated_work/plan.md` already has content (not just the template), ask if user wants to overwrite or update.
 
-3. **Load templates**: Read `.latexkit/templates/start-template.md` to understand required sections for the project start file.
+3. **Load templates**: Read `.latexkit/templates/plan-template.md` to understand required sections for the project plan file.
 
 4. **Extract document details** from user input:
    - Document title
@@ -93,8 +76,12 @@ The text the user typed after `/latexkit.plan` is the assignment brief or descri
      - Role indicators (Ketua, Leader, Anggota, Member)
      - Student ID patterns (numbers after names)
 
-5. **Create project start file**:
-   - Write to START_FILE with extracted details using the start template structure
+5. **Create or Update project plan file**:
+   - Write to PLAN_FILE (`generated_work/plan.md`) with extracted details using the plan template structure
+   - **If PLAN_FILE already exists**:
+     - **Update** the file with new requirements from user input
+     - **Preserve** any manual edits or existing content that shouldn't be changed
+     - **Merging**: Smartly merge new requirements into the existing structure
    - Include sections: Overview, Requirements, Success Criteria, Key Topics
    - **Document Output Language**: Set in the "Document Output Language" field
      - Default: `Indonesian` (if not specified by user)
@@ -105,7 +92,7 @@ The text the user typed after `/latexkit.plan` is the assignment brief or descri
        - The `/latexkit.convert` command will translate to match this setting
        - Example: "Draft in English, final PDF in Indonesian" is fully supported
      - Include examples in the template showing language transformation
-   - **If user specified a project name in step 1**: Include the exact project name in the start file metadata
+   - **If user specified a project name in step 1**: Include the exact project name in the plan file metadata
      - **MANDATORY**: If group/team information was found in user input:
      - Fill in the "Group/Team Information" section completely
      - List ALL provided member names with their roles
@@ -144,7 +131,7 @@ The text the user typed after `/latexkit.plan` is the assignment brief or descri
    - For non-academic documents:
      - Directory exists but may not be needed (no action required)
    - **Validation**: Ensure all required files and directories were created successfully
-     - start.md should exist
+     - generated_work/plan.md should exist
      - All subdirectories should exist
 
 8. **Update constitution check**:
@@ -154,15 +141,15 @@ The text the user typed after `/latexkit.plan` is the assignment brief or descri
 
 9. **Silent checklist validation at completion**:
    - Run `.latexkit/scripts/bash/validate-checklists.sh --command plan >/dev/null 2>&1` (silent mode)
-   - This silently validates and updates the start checklist without CLI output
-   - Updates start checklist based on actual project state
+   - This silently validates and updates the plan checklist without CLI output
+   - Updates plan checklist based on actual project state
    - Marks completed items as done
    - Do not output validation results to user
 
 10. **Report to user**:
    - State: "New project initialized: `<DOC_NUM>-<short-name>` (Main-Only Workflow)."
    - Do NOT mention branch names - we're using folder-based workflow
-   - If group assignment info was provided, add: "Team metadata recorded in start file."
+   - If group assignment info was provided, add: "Team metadata recorded in plan file."
    - If [NEEDS CLARIFICATION] items exist (max 3), add: "Remaining clarifications needed: [list]. Run `/latexkit.clarify` if needed."
    - For academic documents, add: "Export your Zotero library to `zotero_export/` (include a .bib file and any attachments) so the LaTeX templates can use it during conversion."
    - State recommended next step based on document type:
@@ -192,7 +179,7 @@ The text the user typed after `/latexkit.plan` is the assignment brief or descri
           PLAN-01: Initialize [topic] project with requirements and structure
           
           - Created complete project structure with LaTeX source and metadata directories
-          - Documented requirements: [specific requirements from start.md]
+          - Documented requirements: [specific requirements from plan.md]
           - Set up [document type] framework with [key details]
           - Initialized LaTeX template with sections and preamble
           ```
@@ -210,7 +197,7 @@ The text the user typed after `/latexkit.plan` is the assignment brief or descri
 - Create version-controlled checkpoints
 - Validate all dates are in YYYY-MM-DD format
 - **CRITICAL**: Always extract and save ALL group/team member information if provided
-  - Never skip or omit member names from the start file
+  - Never skip or omit member names from the plan file
   - Include all roles (Ketua, Anggota, Leader, Member, etc.)
   - Preserve student IDs when provided
   - If user states "aku kelompok X" or lists members, this is MANDATORY information
@@ -227,8 +214,8 @@ Document is ready for next phase when:
     - `checklists/`, `latex_source/`, `build/`
     - `assignment_info/`, `zotero_export/`
     - `generated_work/` (with subdirs for research, outlines, drafts, etc.)
-  - Start file is complete (≤ 3 clarifications needed)
-  - **If group assignment**: All team members and roles are recorded in start file
+  - Plan file is complete (≤ 3 clarifications needed)
+  - **If group assignment**: All team members and roles are recorded in plan file
   - Initial checklist is generated
   - LaTeX structure will be initialized during convert phase
   - User informed about Zotero export location (if academic document)
@@ -238,6 +225,6 @@ Document is ready for next phase when:
   - Current project confirmed (from `.active_project` file)
   - Document directory exists and is accessible
   - Project structure validated
-  - Start file updated with any new information
+  - Plan file updated with any new information
   - Status report provided
   - Next steps suggested based on current progress
