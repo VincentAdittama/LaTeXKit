@@ -315,8 +315,8 @@ list_projects() {
     done
 }
 
-# Get current branch/project - DEPRECATED but kept for backward compatibility
-# Now delegates to get_active_project for Main-Only workflow
+# Get current active project ID (formerly branch name)
+# Delegates to get_active_project for Main-Only workflow
 get_current_branch() {
     local active_project=$(get_active_project)
     
@@ -442,7 +442,7 @@ get_document_paths() {
 
     cat <<EOF
 REPO_ROOT='$repo_root'
-CURRENT_BRANCH='$current_branch'
+CURRENT_BRANCH='$current_branch' # Alias for ACTIVE_PROJECT (Legacy support)
 ACTIVE_PROJECT='$active_project'
 HAS_GIT='$has_git_repo'
 DOCUMENT_DIR='$document_dir'

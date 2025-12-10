@@ -500,11 +500,10 @@ AUTOMATIC STAGING:
   No need to run 'git add' first - just run this command!
 
 SEQUENTIAL NUMBERING:
-  Numbers are sequential (01, 02, 03...) for commits made on the CURRENT BRANCH ONLY.
-  - Each new branch starts numbering from 01
-  - Only counts commits created on this branch (not inherited from main)
-  - On main/master: always starts from 01 for new documents
-  - Branch isolation ensures clean, independent sequences
+  Numbers are sequential (01, 02, 03...) for commits matching the CURRENT PROJECT FOLDER.
+  - Each project has its own independent counter starting from 01
+  - Counts only commits that touch files within the project directory
+  - Supports multiple projects co-existing in the same repo (trunk-based)
   - Sequential across ALL stages: PLAN-01, RESEARCH-02, OUTLINE-03, DRAFT-04, etc.
 
 BEST PRACTICES:
@@ -515,11 +514,11 @@ BEST PRACTICES:
 EXAMPLES:
   # Explicit stage (RECOMMENDED) - auto-stages all changes
   $0 plan
-  # Result: PLAN-01 (if first commit on this branch)
+  # Result: PLAN-01 (if first commit for this project)
 
   # Explicit stage with sequential numbering
   $0 research
-  # Result: RESEARCH-02 (sequential number continues on this branch)
+  # Result: RESEARCH-02 (sequential number continues for this project)
 
   # Specify stage with custom message
   $0 draft -m "Complete introduction and methodology sections"
@@ -556,8 +555,8 @@ COMMIT FORMAT:
   - Change category 2
   - ...
 
-  Where NN is sequential for commits on THIS BRANCH only (01, 02, 03, ...)
-  Each branch has independent numbering starting from 01.
+  Where NN is sequential for commits in THIS PROJECT ONLY (01, 02, 03, ...)
+  Each project has independent numbering starting from 01.
 
 EXAMPLES OUTPUT:
   PLAN-01: Initial project setup
@@ -579,7 +578,7 @@ EXAMPLES OUTPUT:
   - Revised draft content
   - Updated checklists
 
-  Note: Numbers are sequential for commits on THIS BRANCH only.
+  Note: Numbers are sequential for commits in THIS PROJECT ONLY.
 
 EOF
 }
