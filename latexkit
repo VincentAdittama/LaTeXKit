@@ -1107,6 +1107,10 @@ case "$1" in
         shift
         cmd_new "$@"
         ;;
+    init)
+        shift
+        "${SCRIPT_DIR}/scripts/bash/init.sh" "$@"
+        ;;
     plan)
         shift
         cmd_plan "$@"
@@ -1180,6 +1184,7 @@ case "$1" in
         echo "  6. convert   [AI] Generate prompt for LaTeX conversion"
         echo ""
         echo "Tools:"
+        echo "  init       Initialize workspace configuration"
         echo "  build      Build the current project (PDF)"
         echo "  check      [AI] Analyze logs and latex source"
         echo "  commit     Smart commit with conventional messages"
