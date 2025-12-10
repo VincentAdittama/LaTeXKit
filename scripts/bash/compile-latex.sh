@@ -233,26 +233,8 @@ main() {
         fi
     fi
     
-    # Validate source directory
+    # Validating source directory
     validate_dir "$source_dir" "LaTeX source directory" || exit 1
-    
-    # Generate university-info.tex from workspace config
-    log "Generating university configuration..."
-    local uni_name=$(get_workspace_state "UNI_NAME")
-    local uni_faculty=$(get_workspace_state "UNI_FACULTY")
-    local uni_program=$(get_workspace_state "UNI_PROGRAM")
-    local uni_semester=$(get_workspace_state "UNI_SEMESTER")
-    local uni_logo=$(get_workspace_state "UNI_LOGO")
-    
-    # Create the tex file in the source directory
-    cat > "${source_dir}/university-info.tex" <<EOF
-% Auto-generated university configuration
-\newcommand{\docUniversity}{${uni_name:-University Name}}
-\newcommand{\docFaculty}{${uni_faculty:-Faculty Name}}
-\newcommand{\docProgram}{${uni_program:-Program Name}}
-\newcommand{\docSemester}{${uni_semester:-}}
-\newcommand{\docLogoFile}{${uni_logo:-}}
-EOF
     
     # Compile
     compile_latex "$main_file" "$source_dir" "$clean_after"

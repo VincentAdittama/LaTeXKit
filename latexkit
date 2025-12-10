@@ -768,11 +768,55 @@ cmd_new() {
     print_info "Copying preamble.tex..."
     cp "$REGISTRY_DIR/layouts/$layout/preamble.tex" "$project_dir/latex_source/preamble.tex"
     
-    # 2. Create main.tex
+    # 2. Create main.tex with university info injected
+    # Retrieve university info from workspace state
+    local uni_name=$(get_workspace_state "UNI_NAME")
+    local uni_faculty=$(get_workspace_state "UNI_FACULTY")
+    local uni_program=$(get_workspace_state "UNI_PROGRAM")
+    local uni_semester=$(get_workspace_state "UNI_SEMESTER")
+    local uni_logo=$(get_workspace_state "UNI_LOGO")
+
+    # Read template and replace placeholders if they exist, or just rely on the fact that
+    # the template will be updated to have these variables.
+    # Since we are modifying the template to NOT have \input{university-info.tex} and instead have
+    # default variables, we should just overwrite them here.
+    
+    local template_content=$(cat "$REGISTRY_DIR/layouts/$layout/main.tex")
+    
+    # We will use simple sed injection after creating the file, or construct it here.
+    # Let's write the template content first.
+    
     cat > "$project_dir/latex_source/main.tex" <<EOF
 %!TeX root = main.tex
-$(cat "$REGISTRY_DIR/layouts/$layout/main.tex")
+$template_content
 EOF
+
+    # Now inject the values. We assume the keys exist in the template (we will ensure this in the next step).
+    # We use a temporary file to handle sed's -i differences across platforms or just overwrite.
+    
+    # Function to replace latex command content: \newcommand{\docUniversity}{...}
+    # Function to replace latex command content: \newcommand{\docUniversity}{...}
+    update_tex_var() {
+        local key="$1"
+        local value="$2"
+        # Escape value for sed
+        local escaped_value=$(echo "$value" | sed 's/[\/&]/\\&/g')
+        if [[ -n "$value" ]]; then
+             # Replaces content inside the second set of braces
+             # \newcommand{\docUniversity}{Something} -> \newcommand{\docUniversity}{New Value}
+             sed -i.bak "s/\\\\newcommand{\\\\$key}{.*}/\\\\newcommand{\\\\$key}{$escaped_value}/" "$project_dir/latex_source/main.tex"
+        fi
+    }
+
+    update_tex_var "docUniversity" "$uni_name"
+    update_tex_var "docFaculty" "$uni_faculty"
+    update_tex_var "docProgram" "$uni_program"
+    update_tex_var "docSemester" "$uni_semester"
+    # For logo, it might be optional in the template, but we inject it if defined
+    update_tex_var "docLogoFile" "$uni_logo"
+
+    # Clean up backup file
+    rm -f "$project_dir/latex_source/main.tex.bak"
     
     # Create basic plan.md
     mkdir -p "$project_dir/generated_work"
