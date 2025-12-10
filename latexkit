@@ -242,7 +242,7 @@ generate_prompt_from_template() {
             if [[ -n "$project_dir" && -d "$project_dir" ]]; then
                 print_info "Switching context to active project: $active"
                 # Recursively call the calling function (e.g., cmd_research) in the correct dir
-                (cd "$project_dir" && "$FUNCNAME" "$template_name" "${context_files[@]}")
+                (cd "$project_dir" && "$FUNCNAME" "$template_name" "$phase_slug" "$should_commit" "${context_files[@]}")
                 return $?
             fi
         fi
